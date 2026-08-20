@@ -98,7 +98,7 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#050714;col
 .viewCard .eye{font-size:32px;line-height:1.15}
 .viewCard .num{font:700 42px 'Space Grotesk',sans-serif;color:var(--lime);line-height:1.1}
 .viewCard .lbl{font:600 11.5px 'Space Grotesk',sans-serif;letter-spacing:.16em;text-transform:uppercase;color:#8f98bc}
-.viewCard .viewBadge{display:block;height:34px;margin:2px 0 4px;border-radius:8px}
+.viewCard .viewBadge{display:block;height:38px;margin:2px 0;border-radius:9px}
 .homeGrid{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:repeat(5,1fr);
   grid-template-rows:repeat(3,1fr);gap:13px;position:relative;z-index:2}
 .homeCard{position:relative;min-height:0;border-radius:20px;padding:14px 16px 13px;cursor:pointer;
@@ -169,7 +169,7 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#050714;col
     <span class="hotkey">H</span> กลับหน้า Home ·
     <span class="hotkey">1-9</span> ข้ามไปเดโม ·
     เดโมที่ใช้กล้อง/ไมค์ ต้องเปิดผ่าน <b>START_LECTURE.bat</b> (localhost) เท่านั้น
-    <span class="buildTag">build 2026-08-20c</span>
+    <span class="buildTag">build 2026-08-20d</span>
   </div>
 </section>
 
@@ -787,37 +787,37 @@ const DEMOS = [
 })();
 
 /* ---------- visitor counter — ยอดรวมทุกเครื่อง ----------
-   ตัวหลักคือ page-views-api.ratneshc.com ตัวเดียวกับที่เด็ค Immersive-Theme-Park
-   ของ Gino ใช้อยู่จริงบน GitHub Pages (เช็คแล้วยังตอบ {"views":N} อยู่)
-   ยิง /track หนึ่งครั้งเพื่อ +1 แล้วอ่านยอดรวมจาก /views
+   ตัวหลัก = hits.sh ตัวเดียวกับเด็ค Immersive-Lecture-class-3
+     • เป็นรูป SVG ไม่ใช่ fetch เลยไม่ติด CORS และพังยากที่สุด
+     • นับ "ทุกครั้งที่เปิดหน้า" จริง ๆ กด refresh แล้วเลขขยับ
+     • คีย์ผูกกับ URL ของหน้านี้เอง เช่น ginomcclay28.github.io/Interactive-Demos
+   สำรอง 1 = page-views-api.ratneshc.com (คืนตัวเลข JSON มาโชว์ตัวใหญ่ได้
+             แต่กันนับซ้ำจาก IP เดิม refresh แล้วเลขจะไม่ขยับ)
+   สำรอง 2 = localStorage — และจะเขียนกำกับชัด ๆ ว่านับเฉพาะเครื่องนี้
 
-   ถ้า API ล่ม -> ถอยไปใช้ป้ายรูปของ hits.sh (ไม่ติด CORS เลยพังยาก)
-   ถ้ายังไม่ได้อีก -> localStorage และจะเขียนกำกับไว้ชัด ๆ ว่านับเฉพาะเครื่องนี้
    เปิดจากไฟล์ตรง ๆ (file://) นับรวมไม่ได้ ต้องเปิดผ่านเว็บ
-
-   ย้ายโดเมน/เปลี่ยนชื่อ repo แล้วอยากให้ยอดเดิมต่อเนื่อง: ล็อกค่าที่ VIEW_SITE / VIEW_PATH */
+   ย้ายโดเมน/เปลี่ยนชื่อ repo แล้วอยากให้ยอดเดิมต่อเนื่อง: ล็อกที่ VIEW_SITE / VIEW_PATH */
 const VIEW_SITE = '';        /* ว่าง = ใช้โดเมนที่เปิดอยู่ เช่น ginomcclay28.github.io */
 const VIEW_PATH = '';        /* ว่าง = ใช้ path ที่เปิดอยู่ เช่น /Interactive-Demos    */
 (function views(){
   const num   = document.getElementById('viewNum');
   const lbl   = document.getElementById('viewLbl');
   const badge = document.getElementById('viewBadge');
+  const card  = num && num.closest('.viewCard');
   if(!num) return;
 
-  const showNum = (n, label) => {
+  const showNum = (n, label, tip) => {
     if(badge) badge.hidden = true;
-    num.style.display = '';
+    num.style.display = ''; lbl.style.display = '';
     num.textContent = new Intl.NumberFormat('en-US').format(n);
     lbl.textContent = label;
-    /* API นับ "ผู้เข้าชม" ไม่ใช่ทุกครั้งที่กด refresh — กันเข้าใจผิดตอนเทสต์ */
-    const card = num.closest('.viewCard');
-    if(card) card.title = 'นับผู้เข้าชมจากทุกเครื่องรวมกัน · กด refresh ซ้ำจากเครื่องเดิมจะไม่บวกเพิ่ม';
+    if(card) card.title = tip || '';
   };
   const local = why => {
     const k = 'views:' + (location.host || 'local') + location.pathname;
     let n = 1;
     try{ n = (+localStorage.getItem(k) || 0) + 1; localStorage.setItem(k, n); }catch(_){}
-    showNum(n, why);
+    showNum(n, why, 'ต่อระบบนับกลางไม่ได้ เลยนับในเครื่องนี้แทน');
   };
 
   if(!/^https?:$/.test(location.protocol)){
@@ -828,44 +828,53 @@ const VIEW_PATH = '';        /* ว่าง = ใช้ path ที่เปิ
   const site = VIEW_SITE || location.host;
   const path = VIEW_PATH ||
     (location.pathname.replace(/index\.html$/, '').replace(/\/+$/, '') || '/');
-  const qs   = new URLSearchParams({ site, path }).toString();
-  const API  = 'https://page-views-api.ratneshc.com/api/v1';
-  const localPreview = ['localhost','127.0.0.1','0.0.0.0'].includes(location.hostname);
+  const TIMEOUT = 6000;
 
-  const tryBadge = () => {                       /* ทางสำรอง: ป้ายรูป SVG */
-    if(!badge){ local('นับเฉพาะเครื่องนี้ · ต่อ API ไม่ได้'); return; }
-    setTimeout(() => { if(badge.hidden && num.style.display === '' && num.textContent === '—')
-                         local('นับเฉพาะเครื่องนี้ · ต่อ API ไม่ได้'); }, TIMEOUT);
+  /* ---------- 1) hits.sh ---------- */
+  const hits = () => new Promise((ok, no) => {
+    if(!badge) return no(new Error('no badge element'));
     const key = (site + path).replace(/\/+$/, '');
-    badge.onload  = () => { num.style.display = 'none'; badge.hidden = false;
-                            lbl.textContent = 'total views'; };
-    badge.onerror = () => local('นับเฉพาะเครื่องนี้ · ต่อ API ไม่ได้');
+    const done = setTimeout(() => no(new Error('hits.sh timeout')), TIMEOUT);
+    badge.onload  = () => { clearTimeout(done);
+      num.style.display = 'none'; lbl.style.display = 'none'; badge.hidden = false;
+      if(card) card.title = 'ยอดเปิดหน้านี้ทั้งหมดจากทุกเครื่อง (hits.sh)';
+      ok(); };
+    badge.onerror = () => { clearTimeout(done); no(new Error('hits.sh failed')); };
     badge.src = 'https://hits.sh/' + key + '.svg'
               + '?label=views&bgLeft=0e1530&bgRight=39dff8&color=0a0f1e&border=round';
-  };
+  });
 
-  /* กัน API ค้าง: ไม่มี timeout = หน้าจะรอตลอดกาลแล้วเลข views ไม่ขึ้นเลย */
-  const TIMEOUT = 6000;
-  const get = url => {
-    const ac = new AbortController();
-    const id = setTimeout(() => ac.abort(), TIMEOUT);
-    return fetch(url, { cache:'no-store', signal:ac.signal }).finally(() => clearTimeout(id));
+  /* ---------- 2) page-views-api ---------- */
+  const api = async () => {
+    const qs  = new URLSearchParams({ site, path }).toString();
+    const API = 'https://page-views-api.ratneshc.com/api/v1';
+    const localPreview = ['localhost','127.0.0.1','0.0.0.0'].includes(location.hostname);
+    const get = url => {                          /* ไม่มี timeout = หน้าค้างรอตลอดกาล */
+      const ac = new AbortController();
+      const id = setTimeout(() => ac.abort(), TIMEOUT);
+      return fetch(url, { cache:'no-store', signal:ac.signal }).finally(() => clearTimeout(id));
+    };
+    if(!localPreview){
+      const t = await get(`${API}/track?${qs}`);
+      if(!t.ok) throw new Error('track ' + t.status);
+    }
+    const r = await get(`${API}/views?${qs}`);
+    if(!r.ok) throw new Error('views ' + r.status);
+    const n = Number((await r.json()).views);
+    if(!Number.isFinite(n)) throw new Error('bad payload');
+    showNum(n, localPreview ? 'total views (ไม่นับรอบนี้)' : 'total views',
+            'นับผู้เข้าชมจากทุกเครื่องรวมกัน · refresh ซ้ำจากเครื่องเดิมจะไม่บวกเพิ่ม');
   };
 
   (async () => {
-    try{
-      if(!localPreview){                         /* ดูเฉย ๆ ตอน dev ไม่ต้องบวกยอด */
-        const t = await get(`${API}/track?${qs}`);
-        if(!t.ok) throw new Error('track ' + t.status);
+    try{ await hits(); }
+    catch(e1){
+      console.warn('[views] hits.sh:', e1.message);
+      try{ await api(); }
+      catch(e2){
+        console.warn('[views] api:', e2.message);
+        local('นับเฉพาะเครื่องนี้ · ต่อระบบนับกลางไม่ได้');
       }
-      const r = await get(`${API}/views?${qs}`);
-      if(!r.ok) throw new Error('views ' + r.status);
-      const n = Number((await r.json()).views);
-      if(!Number.isFinite(n)) throw new Error('bad payload');
-      showNum(n, localPreview ? 'total views (ไม่นับรอบนี้)' : 'total views');
-    }catch(err){
-      console.warn('[views]', err);
-      tryBadge();
     }
   })();
 })();
