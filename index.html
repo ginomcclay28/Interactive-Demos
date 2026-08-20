@@ -119,6 +119,7 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#050714;col
 .homeCard .tg.mic{background:rgba(199,255,75,.13);border-color:rgba(199,255,75,.34);color:#e2ff9f}
 .homeFoot{flex:0 0 auto;font-size:14px;line-height:1.6;color:#7d87ad;position:relative;z-index:2}
 .homeFoot b{color:#b8c4e8}
+.buildTag{float:right;font:600 11px 'Space Grotesk',sans-serif;letter-spacing:.1em;color:#4d5674}
 .homeFoot .hotkey{border:1px solid rgba(255,255,255,.22);border-bottom-width:3px;border-radius:7px;
   padding:2px 7px;background:rgba(255,255,255,.08);font-family:'Space Grotesk',sans-serif;font-size:12px}
 
@@ -168,6 +169,7 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#050714;col
     <span class="hotkey">H</span> กลับหน้า Home ·
     <span class="hotkey">1-9</span> ข้ามไปเดโม ·
     เดโมที่ใช้กล้อง/ไมค์ ต้องเปิดผ่าน <b>START_LECTURE.bat</b> (localhost) เท่านั้น
+    <span class="buildTag">build 2026-08-20b</span>
   </div>
 </section>
 
@@ -816,7 +818,7 @@ const VIEW_PATH = '';        /* ว่าง = ใช้ path ที่เปิ
   };
 
   if(!/^https?:$/.test(location.protocol)){
-    local('เครื่องนี้ · เปิดผ่านเว็บถึงนับรวม');
+    local('นับเฉพาะเครื่องนี้ · เปิดผ่านเว็บถึงนับรวม');
     return;
   }
 
@@ -828,11 +830,11 @@ const VIEW_PATH = '';        /* ว่าง = ใช้ path ที่เปิ
   const localPreview = ['localhost','127.0.0.1','0.0.0.0'].includes(location.hostname);
 
   const tryBadge = () => {                       /* ทางสำรอง: ป้ายรูป SVG */
-    if(!badge){ local('เครื่องนี้ (นับรวมไม่สำเร็จ)'); return; }
+    if(!badge){ local('นับเฉพาะเครื่องนี้ · ต่อ API ไม่ได้'); return; }
     const key = (site + path).replace(/\/+$/, '');
     badge.onload  = () => { num.style.display = 'none'; badge.hidden = false;
                             lbl.textContent = 'total views'; };
-    badge.onerror = () => local('เครื่องนี้ (นับรวมไม่สำเร็จ)');
+    badge.onerror = () => local('นับเฉพาะเครื่องนี้ · ต่อ API ไม่ได้');
     badge.src = 'https://hits.sh/' + key + '.svg'
               + '?label=views&bgLeft=0e1530&bgRight=39dff8&color=0a0f1e&border=round';
   };
