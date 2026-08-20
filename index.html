@@ -98,6 +98,7 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#050714;col
 .viewCard .eye{font-size:32px;line-height:1.15}
 .viewCard .num{font:700 42px 'Space Grotesk',sans-serif;color:var(--lime);line-height:1.1}
 .viewCard .lbl{font:600 11.5px 'Space Grotesk',sans-serif;letter-spacing:.16em;text-transform:uppercase;color:#8f98bc}
+.viewCard .viewBadge{display:block;height:34px;margin:2px 0 4px;border-radius:8px}
 .homeGrid{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:repeat(5,1fr);
   grid-template-rows:repeat(3,1fr);gap:13px;position:relative;z-index:2}
 .homeCard{position:relative;min-height:0;border-radius:20px;padding:14px 16px 13px;cursor:pointer;
@@ -151,7 +152,11 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#050714;col
     </div>
     <div class="viewCard">
       <span class="eye">👁</span>
-      <div><div class="num" id="viewNum">—</div><div class="lbl" id="viewLbl">total views</div></div>
+      <div>
+        <div class="num" id="viewNum">—</div>
+        <img class="viewBadge" id="viewBadge" alt="" hidden/>
+        <div class="lbl" id="viewLbl">total views</div>
+      </div>
     </div>
   </div>
 
@@ -779,42 +784,74 @@ const DEMOS = [
   g.appendChild(leg);
 })();
 
-/* ---------- visitor counter ----------
-   ลำดับที่ลอง: counterapi.dev -> countapi.xyz -> localStorage
-   อยากล็อกคีย์เอง (ย้ายโดเมนแล้วอยากให้ยอดต่อเนื่อง) แก้ที่ VIEW_KEY  */
-const VIEW_NS  = 'gino-immersive';
-const VIEW_KEY = 'interactive-demos';
+/* ---------- visitor counter — ยอดรวมทุกเครื่อง ----------
+   ตัวหลักคือ page-views-api.ratneshc.com ตัวเดียวกับที่เด็ค Immersive-Theme-Park
+   ของ Gino ใช้อยู่จริงบน GitHub Pages (เช็คแล้วยังตอบ {"views":N} อยู่)
+   ยิง /track หนึ่งครั้งเพื่อ +1 แล้วอ่านยอดรวมจาก /views
+
+   ถ้า API ล่ม -> ถอยไปใช้ป้ายรูปของ hits.sh (ไม่ติด CORS เลยพังยาก)
+   ถ้ายังไม่ได้อีก -> localStorage และจะเขียนกำกับไว้ชัด ๆ ว่านับเฉพาะเครื่องนี้
+   เปิดจากไฟล์ตรง ๆ (file://) นับรวมไม่ได้ ต้องเปิดผ่านเว็บ
+
+   ย้ายโดเมน/เปลี่ยนชื่อ repo แล้วอยากให้ยอดเดิมต่อเนื่อง: ล็อกค่าที่ VIEW_SITE / VIEW_PATH */
+const VIEW_SITE = '';        /* ว่าง = ใช้โดเมนที่เปิดอยู่ เช่น ginomcclay28.github.io */
+const VIEW_PATH = '';        /* ว่าง = ใช้ path ที่เปิดอยู่ เช่น /Interactive-Demos    */
 (function views(){
-  const num = document.getElementById('viewNum');
-  const lbl = document.getElementById('viewLbl');
+  const num   = document.getElementById('viewNum');
+  const lbl   = document.getElementById('viewLbl');
+  const badge = document.getElementById('viewBadge');
   if(!num) return;
-  const local = () => {
-    const k = 'views:' + VIEW_NS + ':' + VIEW_KEY;
-    const n = (+localStorage.getItem(k) || 0) + 1;
-    try{ localStorage.setItem(k, n); }catch(_){}
-    num.textContent = n.toLocaleString('en-US');
-    lbl.textContent = 'views (เครื่องนี้)';
+
+  const showNum = (n, label) => {
+    if(badge) badge.hidden = true;
+    num.style.display = '';
+    num.textContent = new Intl.NumberFormat('en-US').format(n);
+    lbl.textContent = label;
   };
-  if(!isHttp()){ local(); return; }
-  const urls = [
-    `https://api.counterapi.dev/v1/${VIEW_NS}/${VIEW_KEY}/up`,
-    `https://api.countapi.xyz/hit/${VIEW_NS}/${VIEW_KEY}`
-  ];
+  const local = why => {
+    const k = 'views:' + (location.host || 'local') + location.pathname;
+    let n = 1;
+    try{ n = (+localStorage.getItem(k) || 0) + 1; localStorage.setItem(k, n); }catch(_){}
+    showNum(n, why);
+  };
+
+  if(!/^https?:$/.test(location.protocol)){
+    local('เครื่องนี้ · เปิดผ่านเว็บถึงนับรวม');
+    return;
+  }
+
+  const site = VIEW_SITE || location.host;
+  const path = VIEW_PATH ||
+    (location.pathname.replace(/index\.html$/, '').replace(/\/+$/, '') || '/');
+  const qs   = new URLSearchParams({ site, path }).toString();
+  const API  = 'https://page-views-api.ratneshc.com/api/v1';
+  const localPreview = ['localhost','127.0.0.1','0.0.0.0'].includes(location.hostname);
+
+  const tryBadge = () => {                       /* ทางสำรอง: ป้ายรูป SVG */
+    if(!badge){ local('เครื่องนี้ (นับรวมไม่สำเร็จ)'); return; }
+    const key = (site + path).replace(/\/+$/, '');
+    badge.onload  = () => { num.style.display = 'none'; badge.hidden = false;
+                            lbl.textContent = 'total views'; };
+    badge.onerror = () => local('เครื่องนี้ (นับรวมไม่สำเร็จ)');
+    badge.src = 'https://hits.sh/' + key + '.svg'
+              + '?label=views&bgLeft=0e1530&bgRight=39dff8&color=0a0f1e&border=round';
+  };
+
   (async () => {
-    for(const u of urls){
-      try{
-        const r = await fetch(u, { cache:'no-store' });
-        if(!r.ok) continue;
-        const j = await r.json();
-        const n = j.count ?? j.value ?? j.data?.count;
-        if(typeof n === 'number'){
-          num.textContent = n.toLocaleString('en-US');
-          lbl.textContent = 'total views';
-          return;
-        }
-      }catch(_){}
+    try{
+      if(!localPreview){                         /* ดูเฉย ๆ ตอน dev ไม่ต้องบวกยอด */
+        const t = await fetch(`${API}/track?${qs}`, { cache:'no-store' });
+        if(!t.ok) throw new Error('track ' + t.status);
+      }
+      const r = await fetch(`${API}/views?${qs}`, { cache:'no-store' });
+      if(!r.ok) throw new Error('views ' + r.status);
+      const n = Number((await r.json()).views);
+      if(!Number.isFinite(n)) throw new Error('bad payload');
+      showNum(n, localPreview ? 'total views (ไม่นับรอบนี้)' : 'total views');
+    }catch(err){
+      console.warn('[views]', err);
+      tryBadge();
     }
-    local();
   })();
 })();
 
