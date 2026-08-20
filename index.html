@@ -169,7 +169,7 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#050714;col
     <span class="hotkey">H</span> กลับหน้า Home ·
     <span class="hotkey">1-9</span> ข้ามไปเดโม ·
     เดโมที่ใช้กล้อง/ไมค์ ต้องเปิดผ่าน <b>START_LECTURE.bat</b> (localhost) เท่านั้น
-    <span class="buildTag">build 2026-08-20b</span>
+    <span class="buildTag">build 2026-08-20c</span>
   </div>
 </section>
 
@@ -809,6 +809,9 @@ const VIEW_PATH = '';        /* ว่าง = ใช้ path ที่เปิ
     num.style.display = '';
     num.textContent = new Intl.NumberFormat('en-US').format(n);
     lbl.textContent = label;
+    /* API นับ "ผู้เข้าชม" ไม่ใช่ทุกครั้งที่กด refresh — กันเข้าใจผิดตอนเทสต์ */
+    const card = num.closest('.viewCard');
+    if(card) card.title = 'นับผู้เข้าชมจากทุกเครื่องรวมกัน · กด refresh ซ้ำจากเครื่องเดิมจะไม่บวกเพิ่ม';
   };
   const local = why => {
     const k = 'views:' + (location.host || 'local') + location.pathname;
@@ -831,6 +834,8 @@ const VIEW_PATH = '';        /* ว่าง = ใช้ path ที่เปิ
 
   const tryBadge = () => {                       /* ทางสำรอง: ป้ายรูป SVG */
     if(!badge){ local('นับเฉพาะเครื่องนี้ · ต่อ API ไม่ได้'); return; }
+    setTimeout(() => { if(badge.hidden && num.style.display === '' && num.textContent === '—')
+                         local('นับเฉพาะเครื่องนี้ · ต่อ API ไม่ได้'); }, TIMEOUT);
     const key = (site + path).replace(/\/+$/, '');
     badge.onload  = () => { num.style.display = 'none'; badge.hidden = false;
                             lbl.textContent = 'total views'; };
@@ -839,13 +844,21 @@ const VIEW_PATH = '';        /* ว่าง = ใช้ path ที่เปิ
               + '?label=views&bgLeft=0e1530&bgRight=39dff8&color=0a0f1e&border=round';
   };
 
+  /* กัน API ค้าง: ไม่มี timeout = หน้าจะรอตลอดกาลแล้วเลข views ไม่ขึ้นเลย */
+  const TIMEOUT = 6000;
+  const get = url => {
+    const ac = new AbortController();
+    const id = setTimeout(() => ac.abort(), TIMEOUT);
+    return fetch(url, { cache:'no-store', signal:ac.signal }).finally(() => clearTimeout(id));
+  };
+
   (async () => {
     try{
       if(!localPreview){                         /* ดูเฉย ๆ ตอน dev ไม่ต้องบวกยอด */
-        const t = await fetch(`${API}/track?${qs}`, { cache:'no-store' });
+        const t = await get(`${API}/track?${qs}`);
         if(!t.ok) throw new Error('track ' + t.status);
       }
-      const r = await fetch(`${API}/views?${qs}`, { cache:'no-store' });
+      const r = await get(`${API}/views?${qs}`);
       if(!r.ok) throw new Error('views ' + r.status);
       const n = Number((await r.json()).views);
       if(!Number.isFinite(n)) throw new Error('bad payload');
