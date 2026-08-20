@@ -1,0 +1,2991 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<title>Interactive Demos — Immersive Lecture</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Anuphan:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
+:root{--bg:#080b1d;--panel:#111633;--text:#f8f8ff;--muted:#b8bfd9;--pink:#ff4fa3;--cyan:#39dff8;--lime:#c7ff4b;--orange:#ff9b42;--violet:#8b6cff;--shadow:0 22px 70px rgba(0,0,0,.35)}
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#050714;color:var(--text);
+  font-family:Anuphan,system-ui,sans-serif}
+#stage{position:absolute;top:50%;left:50%;width:1920px;height:1080px;
+  transform-origin:50% 50%;transform:translate(-50%,-50%);will-change:transform;overflow:hidden}
+.deck{width:1920px;height:1080px;position:relative;overflow:hidden}
+
+/* ---------------- slide shell ---------------- */
+.slide{position:absolute;inset:0;width:1920px;height:1080px;padding:20px 26px 72px;
+  display:flex;flex-direction:column;gap:12px;opacity:0;transform:translateX(40px) scale(.985);
+  pointer-events:none;transition:.4s cubic-bezier(.2,.75,.2,1);overflow:hidden;
+  background:radial-gradient(circle at 80% 8%,rgba(139,108,255,.20),transparent 30%),
+             radial-gradient(circle at 12% 88%,rgba(57,223,248,.12),transparent 28%),
+             linear-gradient(135deg,#080b1d,#0b1029)}
+.slide.active{opacity:1;transform:none;pointer-events:auto}
+.slide.prev{transform:translateX(-40px) scale(.985)}
+.slide:before{content:"";position:absolute;inset:0;pointer-events:none;
+  background-image:linear-gradient(rgba(255,255,255,.022) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(255,255,255,.022) 1px,transparent 1px);
+  background-size:44px 44px;mask-image:linear-gradient(to bottom,black,transparent 78%)}
+
+/* ---------------- the single top line ---------------- */
+.demoTop{flex:0 0 auto;display:flex;align-items:baseline;gap:16px;height:44px;position:relative;z-index:2}
+.demoTop .no{font:700 30px 'Space Grotesk',Anuphan,sans-serif;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--cyan)}
+.demoTop .nm{font:600 21px Anuphan,system-ui,sans-serif;color:#7d87ad;letter-spacing:.01em}
+
+/* ---------------- the big interactive frame ---------------- */
+.demoStage{position:relative;flex:1 1 auto;min-height:0;border-radius:22px;overflow:hidden;
+  background:#04060e;border:1px solid rgba(255,255,255,.15);box-shadow:var(--shadow)}
+.demoStage canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.demoStage video{position:absolute;inset:0;width:100%;height:100%;display:block;object-fit:cover}
+.demoStage video.mirror{transform:scaleX(-1)}
+.demoStage canvas.pass{pointer-events:none}
+.demoStat{position:absolute;left:16px;bottom:14px;max-width:1100px;padding:8px 14px;border-radius:11px;
+  font-size:15px;color:#dbe4ff;background:rgba(6,9,22,.74);border:1px solid rgba(255,255,255,.12);z-index:5}
+.demoStat b{color:var(--lime)}
+
+/* ---------------- config panel (like slide 41's HUD) ---------------- */
+.cfgHud{position:absolute;left:16px;top:14px;z-index:6;max-width:1180px;
+  padding:9px 12px;border-radius:16px;background:rgba(6,9,22,.80);
+  border:1px solid rgba(255,255,255,.14);backdrop-filter:blur(8px);
+  display:flex;align-items:flex-start;gap:12px}
+.cfgToggle{flex:0 0 auto;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.07);
+  color:#cfe9ff;border-radius:11px;padding:8px 12px;cursor:pointer;
+  font:700 12.5px 'Space Grotesk',Anuphan,sans-serif;letter-spacing:.1em}
+.cfgToggle:hover{background:rgba(57,223,248,.18)}
+.cfgBody{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.cfgHud.collapsed .cfgBody{display:none}
+.cfgGrp{display:flex;align-items:center;gap:7px}
+.cfgGrp>span{font:600 12px 'Space Grotesk',sans-serif;letter-spacing:.09em;text-transform:uppercase;
+  color:#8f98bc;margin-right:1px;white-space:nowrap}
+.cfgBtn{padding:7px 13px;border-radius:11px;cursor:pointer;border:1px solid rgba(255,255,255,.16);
+  background:rgba(255,255,255,.05);color:#dbe4ff;font:600 14.5px Anuphan,system-ui,sans-serif;transition:.15s}
+.cfgBtn:hover{background:rgba(255,255,255,.11)}
+.cfgBtn.on{background:rgba(57,223,248,.2);border-color:var(--cyan);color:#bff3ff}
+.cfgBtn.act{background:rgba(139,108,255,.22);border-color:rgba(139,108,255,.5);color:#e0d9ff}
+.cfgBtn.act:hover{background:rgba(139,108,255,.36)}
+.cfgBtn.live{background:#ff4fa3;border-color:#ff4fa3;color:#fff}
+.cfgRange{width:112px;accent-color:var(--cyan);cursor:pointer}
+.cfgVal{font:700 13px 'Space Grotesk',sans-serif;color:#bff3ff;min-width:40px;text-align:right}
+.cfgNum{width:82px;padding:7px 9px;border-radius:11px;outline:none;font:700 14px 'Space Grotesk',sans-serif;
+  color:#eaf1ff;background:rgba(0,0,0,.32);border:1px solid rgba(255,255,255,.18)}
+.cfgNum:focus{border-color:var(--cyan)}
+.cfgTxt{width:78px;text-align:center;font-family:'Space Grotesk',Anuphan,sans-serif}
+.cfgEnter{width:190px;padding:7px 10px;border-radius:11px;outline:none;
+  font:500 14px Anuphan,system-ui,sans-serif;color:#eaf1ff;
+  background:rgba(0,0,0,.32);border:1px solid rgba(255,255,255,.18)}
+.cfgEnter::placeholder{color:#7f8ab0}
+.cfgCol{width:38px;height:30px;padding:0;border:1px solid rgba(255,255,255,.2);border-radius:9px;
+  background:transparent;cursor:pointer}
+.cfgMeter{width:52px;height:9px;border-radius:6px;overflow:hidden;
+  background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18)}
+.cfgMeter i{display:block;height:100%;width:0;background:linear-gradient(90deg,#c7ff4b,#ffd56e,#ff4fa3);
+  transition:width .06s linear}
+
+/* ---------------- home ---------------- */
+.homeSlide{padding:44px 56px 78px;gap:14px}
+.homeHead{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;position:relative;z-index:2}
+.homeTitle{margin:0;font-size:60px;line-height:1.1;letter-spacing:-.045em}
+.homeTitle .accent{background:linear-gradient(90deg,var(--pink),var(--orange),var(--lime));
+  -webkit-background-clip:text;background-clip:text;color:transparent}
+.homeKick{font:600 20px 'Space Grotesk',sans-serif;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--cyan);margin-bottom:10px}
+.homeSub{margin:10px 0 0;font-size:19px;color:var(--muted);max-width:1000px}
+.viewCard{flex:0 0 auto;display:flex;align-items:center;gap:14px;padding:14px 20px;border-radius:20px;
+  background:linear-gradient(145deg,rgba(255,255,255,.09),rgba(255,255,255,.04));
+  border:1px solid rgba(255,255,255,.14)}
+.viewCard .eye{font-size:32px;line-height:1.15}
+.viewCard .num{font:700 42px 'Space Grotesk',sans-serif;color:var(--lime);line-height:1.1}
+.viewCard .lbl{font:600 11.5px 'Space Grotesk',sans-serif;letter-spacing:.16em;text-transform:uppercase;color:#8f98bc}
+.homeGrid{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:repeat(5,1fr);
+  grid-template-rows:repeat(3,1fr);gap:13px;position:relative;z-index:2}
+.homeCard{position:relative;min-height:0;border-radius:20px;padding:14px 16px 13px;cursor:pointer;
+  display:flex;flex-direction:column;justify-content:flex-end;gap:6px;text-align:left;
+  background:linear-gradient(150deg,rgba(255,255,255,.085),rgba(255,255,255,.035));
+  border:1px solid rgba(255,255,255,.13);color:inherit;font-family:inherit;
+  transition:.2s;overflow:hidden}
+.homeCard:hover{transform:translateY(-6px);border-color:rgba(57,223,248,.5);
+  background:linear-gradient(150deg,rgba(57,223,248,.16),rgba(139,108,255,.09))}
+.homeCard .ic{font-size:42px;line-height:1.15;margin-bottom:auto}
+.homeCard .n{font:700 12px 'Space Grotesk',sans-serif;letter-spacing:.14em;color:var(--cyan)}
+.homeCard .t{font-size:17.5px;font-weight:700;line-height:1.15}
+.homeCard .d{font-size:12.5px;color:var(--muted);line-height:1.28}
+.homeCard .tagRow{display:flex;gap:5px;flex-wrap:wrap;margin-top:3px}
+.homeCard .tg{font:600 10.5px 'Space Grotesk',Anuphan,sans-serif;padding:3px 7px;border-radius:999px;
+  background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:#c8d3f5}
+.homeCard .tg.cam{background:rgba(255,79,163,.14);border-color:rgba(255,79,163,.36);color:#ffbcdb}
+.homeCard .tg.mic{background:rgba(199,255,75,.13);border-color:rgba(199,255,75,.34);color:#e2ff9f}
+.homeFoot{flex:0 0 auto;font-size:14px;line-height:1.6;color:#7d87ad;position:relative;z-index:2}
+.homeFoot b{color:#b8c4e8}
+.homeFoot .hotkey{border:1px solid rgba(255,255,255,.22);border-bottom-width:3px;border-radius:7px;
+  padding:2px 7px;background:rgba(255,255,255,.08);font-family:'Space Grotesk',sans-serif;font-size:12px}
+
+/* ---------------- chrome ---------------- */
+.controls{position:absolute;z-index:60;left:960px;bottom:16px;transform:translateX(-50%);
+  display:flex;align-items:center;gap:10px;background:rgba(5,7,20,.74);
+  border:1px solid rgba(255,255,255,.13);backdrop-filter:blur(15px);padding:7px 12px;border-radius:999px}
+.controls button{border:0;border-radius:50%;width:40px;height:40px;background:rgba(255,255,255,.1);
+  color:#fff;font-size:19px;cursor:pointer;font-family:inherit}
+.controls button:hover{background:var(--pink)}
+.controls button.home{border-radius:14px;width:auto;padding:0 14px;font-size:15px}
+#counter{min-width:70px;text-align:center;color:var(--muted);font-family:'Space Grotesk',sans-serif;font-size:15px}
+.fsHint{font-size:12px;color:#aeb9dc;padding:0 6px;white-space:nowrap}
+.progress{position:absolute;left:0;bottom:0;height:4px;width:0;z-index:100;transition:.35s;
+  background:linear-gradient(90deg,var(--pink),var(--cyan),var(--lime))}
+.deckTag{position:absolute;right:28px;top:20px;z-index:3;color:#6f7899;
+  font:600 12px 'Space Grotesk',sans-serif;letter-spacing:.14em}
+</style>
+</head>
+<body>
+<div id="stage">
+<div class="deck" id="deck">
+
+<!-- ============================ HOME ============================ -->
+<section class="slide homeSlide active">
+  <div class="homeHead">
+    <div>
+      <div class="homeKick">Immersive Lecture · Playground</div>
+      <h1 class="homeTitle">Interactive <span class="accent">Demos</span></h1>
+      <p class="homeSub">กดที่การ์ดเพื่อกระโดดไปเดโมนั้นได้เลย · ทุกเดโมมีช่อง <b>CONFIG</b> ให้ปรับค่าสดหน้าห้อง</p>
+    </div>
+    <div class="viewCard">
+      <span class="eye">👁</span>
+      <div><div class="num" id="viewNum">—</div><div class="lbl" id="viewLbl">total views</div></div>
+    </div>
+  </div>
+
+  <div class="homeGrid" id="homeGrid"></div>
+
+  <div class="homeFoot">
+    <span class="hotkey">←</span> <span class="hotkey">→</span> เปลี่ยนสไลด์ ·
+    <span class="hotkey">F</span> เต็มจอ ·
+    <span class="hotkey">H</span> กลับหน้า Home ·
+    <span class="hotkey">1-9</span> ข้ามไปเดโม ·
+    เดโมที่ใช้กล้อง/ไมค์ ต้องเปิดผ่าน <b>START_LECTURE.bat</b> (localhost) เท่านั้น
+  </div>
+</section>
+
+<!-- ======================= 01 · PARTICLE FIELD ======================= -->
+<section class="slide">
+  <div class="demoTop"><span class="no">Demo Interactive 01</span><span class="nm">Particle Field</span></div>
+  <div class="demoStage">
+    <canvas id="c1"></canvas>
+    <div class="cfgHud" id="h1"></div>
+    <div class="demoStat" id="s1">เลื่อนเมาส์ = ผลัก · คลิกซ้ายค้าง = ดูดเก็บ · ปล่อย = ระเบิด</div>
+  </div>
+</section>
+
+<!-- ======================= 02 · POINTER SPRAY ======================== -->
+<section class="slide">
+  <div class="demoTop"><span class="no">Demo Interactive 02</span><span class="nm">Pointer Spray</span></div>
+  <div class="demoStage">
+    <canvas id="c2"></canvas>
+    <div class="cfgHud" id="h2"></div>
+    <div class="demoStat" id="s2">ลากเมาส์ไปมา · ปล่อยมือไว้เฉย ๆ ระบบจะวิ่งเองเป็นวงรี</div>
+  </div>
+</section>
+
+<!-- ======================= 03 · LIVE CAMERA TRACKING ================= -->
+<section class="slide">
+  <div class="demoTop"><span class="no">Demo Interactive 03</span><span class="nm">Live Camera Tracking</span></div>
+  <div class="demoStage">
+    <video id="v3" class="mirror" muted playsinline></video>
+    <canvas id="c3" class="pass"></canvas>
+    <div class="cfgHud" id="h3"></div>
+    <div class="demoStat" id="s3">กดเปิดกล้อง แล้วอนุญาตให้เบราว์เซอร์ใช้กล้อง</div>
+  </div>
+</section>
+
+<!-- ======================= 04 · SPEECH → PHYSICS ===================== -->
+<section class="slide">
+  <div class="demoTop"><span class="no">Demo Interactive 04</span><span class="nm">Speech → Physics</span></div>
+  <div class="demoStage">
+    <canvas id="c4" class="pass"></canvas>
+    <div class="cfgHud" id="h4"></div>
+    <div class="demoStat" id="s4">กดเปิดไมโครโฟนแล้วอนุญาตให้เบราว์เซอร์ใช้ไมค์ — หรือพิมพ์ในช่องแล้วกด Enter</div>
+  </div>
+</section>
+
+<!-- ======================= 05 · WATERFALL SILHOUETTE ================= -->
+<section class="slide">
+  <div class="demoTop"><span class="no">Demo Interactive 05</span><span class="nm">Waterfall Silhouette</span></div>
+  <div class="demoStage">
+    <video id="v5" class="mirror" muted playsinline></video>
+    <canvas id="c5"></canvas>
+    <div class="cfgHud" id="h5"></div>
+    <div class="demoStat" id="s5">ยังไม่เปิดกล้อง — ตอนนี้ใช้เมาส์แทนตัวคนได้เลย</div>
+  </div>
+</section>
+
+<!-- ======================= 06 · FISH SCHOOL ========================== -->
+<section class="slide">
+  <div class="demoTop"><span class="no">Demo Interactive 06</span><span class="nm">Fish School</span></div>
+  <div class="demoStage">
+    <canvas id="c6"></canvas>
+    <div class="cfgHud" id="h6"></div>
+    <div class="demoStat" id="s6">ลากเมาส์ = ปลาว่ายหนี · คลิก = โปรยอาหาร ปลาจะว่ายเข้ามา</div>
+  </div>
+</section>
+
+<!-- ======================= 07 · FOGGY MIRROR ========================= -->
+<section class="slide">
+  <div class="demoTop"><span class="no">Demo Interactive 07</span><span class="nm">Foggy Mirror</span></div>
+  <div class="demoStage">
+    <video id="v7" class="mirror" muted playsinline></video>
+    <canvas id="c7"></canvas>
+    <div class="cfgHud" id="h7"></div>
+    <div class="demoStat" id="s7">เอาเมาส์ลากเช็ดฝ้าได้เลย · เปิดกล้องแล้วสลับเป็น “มือจากกล้อง” เพื่อโบกมือเช็ด</div>
+  </div>
+</section>
+
+<!-- ======================= 08 · PIN ART WALL ========================= -->
+<section class="slide">
+  <div class="demoTop"><span class="no">Demo Interactive 08</span><span class="nm">Pin Art Wall</span></div>
+  <div class="demoStage">
+    <video id="v8" class="mirror" muted playsinline></video>
+    <canvas id="c8"></canvas>
+    <div class="cfgHud" id="h8"></div>
+    <div class="demoStat" id="s8">ยังไม่เปิดกล้อง — ตอนนี้เข็มจะวิ่งตามเมาส์</div>
+  </div>
+</section>
+
+<!-- ======================= 09 · RIPPLE POOL ========================= -->
+<section class="slide">
+  <div class="demoTop"><span class="no">Demo Interactive 09</span><span class="nm">Ripple Pool</span></div>
+  <div class="demoStage">
+    <canvas id="c9"></canvas>
+    <div class="cfgHud" id="h9"></div>
+    <div class="demoStat" id="s9">ลากเมาส์บนผิวน้ำ · คลิกเพื่อหยดน้ำหนึ่งหยด</div>
+  </div>
+</section>
+
+<!-- ======================= 10 · AURORA FLOW FIELD ==================== -->
+<section class="slide">
+  <div class="demoTop"><span class="no">Demo Interactive 10</span><span class="nm">Aurora Flow Field</span></div>
+  <div class="demoStage">
+    <canvas id="c10"></canvas>
+    <div class="cfgHud" id="h10"></div>
+    <div class="demoStat" id="s10">เอาเมาส์กวนสายแสง — สนามทิศทางเบื้องหลังคือ noise field ตัวเดียวกับที่ใช้ใน TouchDesigner</div>
+  </div>
+</section>
+
+<!-- ======================= 11 · MAGNETIC SAND ======================== -->
+<section class="slide">
+  <div class="demoTop"><span class="no">Demo Interactive 11</span><span class="nm">Magnetic Sand</span></div>
+  <div class="demoStage">
+    <canvas id="c11"></canvas>
+    <div class="cfgHud" id="h11"></div>
+    <div class="demoStat" id="s11">เมาส์ = แม่เหล็กที่ถืออยู่ · คลิก = วางขั้วถาวรลงบนจาน · คลิกขวา = ลบขั้วที่ใกล้ที่สุด</div>
+  </div>
+</section>
+
+<!-- ======================= 12 · KALEIDOSCOPE PAINT =================== -->
+<section class="slide">
+  <div class="demoTop"><span class="no">Demo Interactive 12</span><span class="nm">Kaleidoscope Paint</span></div>
+  <div class="demoStage">
+    <canvas id="c12"></canvas>
+    <div class="cfgHud" id="h12"></div>
+    <div class="demoStat" id="s12">ลากเมาส์วาดได้เลย — เส้นเดียวจะถูกสะท้อนรอบจุดกึ่งกลางเป็นลายมันดาลา</div>
+  </div>
+</section>
+
+<!-- ======================= 13 · CLOTH & ROPE ========================= -->
+<section class="slide">
+  <div class="demoTop"><span class="no">Demo Interactive 13</span><span class="nm">Cloth &amp; Rope</span></div>
+  <div class="demoStage">
+    <canvas id="c13"></canvas>
+    <div class="cfgHud" id="h13"></div>
+    <div class="demoStat" id="s13">ลากผ้าไปมาได้ · กด Shift ค้างแล้วลาก = กรรไกรฉีกผ้า · คลิกขวา = ปลด/ปักหมุด</div>
+  </div>
+</section>
+
+<!-- ======================= 14 · AUDIO FOREST ========================= -->
+<section class="slide">
+  <div class="demoTop"><span class="no">Demo Interactive 14</span><span class="nm">Audio Reactive Forest</span></div>
+  <div class="demoStage">
+    <canvas id="c14" class="pass"></canvas>
+    <div class="cfgHud" id="h14"></div>
+    <div class="demoStat" id="s14">กดเปิดไมโครโฟน แล้วลองพูด ตบมือ หรือเปิดเพลง</div>
+  </div>
+</section>
+
+</div>
+<div class="controls">
+  <button onclick="show(0)" class="home" title="Home">⌂ Home</button>
+  <button onclick="go(-1)">‹</button><span id="counter">1 / 15</span><button onclick="go(1)">›</button>
+  <button onclick="toggleFS()" title="Fullscreen">⛶</button><span class="fsHint">F Fullscreen</span>
+</div>
+<div class="progress" id="progress"></div>
+</div>
+<script>
+/* ============================================================
+   Interactive Demos — runtime
+   Fixed 1920x1080 stage, scaled with one transform.
+   เอนจิน (fitStage / sizeCanvas / localPt / onSlide) ยกมาจากเด็ค
+   Immersive Lecture class-3 ตรง ๆ เพื่อให้พฤติกรรมเหมือนกันเป๊ะ
+   ============================================================ */
+const stage    = document.getElementById('stage');
+const slides   = [...document.querySelectorAll('.slide')];
+const counterEl= document.getElementById('counter');
+const progressEl=document.getElementById('progress');
+let index = 0, scale = 1;
+
+function fitStage(){
+  scale = Math.min(innerWidth / 1920, innerHeight / 1080);
+  stage.style.transform = `translate(-50%,-50%) scale(${scale})`;
+}
+addEventListener('resize', fitStage);
+fitStage();
+
+/* canvas ต้องวัดจาก clientWidth/Height เท่านั้น — getBoundingClientRect()
+   ถูกคูณด้วย stage scale ทำให้ภาพเพี้ยนจากตำแหน่งเมาส์ */
+function sizeCanvas(c){
+  const w = c.clientWidth, h = c.clientHeight;
+  if(!w || !h) return null;
+  const dpr = Math.min(2, (window.devicePixelRatio || 1) * Math.max(1, scale));
+  const W = Math.round(w * dpr), H = Math.round(h * dpr);
+  if(c.width !== W || c.height !== H){ c.width = W; c.height = H; }
+  const cx = c.getContext('2d');
+  cx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return cx;
+}
+function localPt(el, e){
+  const r = el.getBoundingClientRect();
+  const sx = el.clientWidth  / (r.width  || 1);
+  const sy = el.clientHeight / (r.height || 1);
+  return { x: (e.clientX - r.left) * sx, y: (e.clientY - r.top) * sy };
+}
+
+/* ---------- per-slide lifecycle ---------- */
+const hooks = [];
+function onSlide(selector, { enter, leave } = {}){
+  const el = document.querySelector(selector);
+  const slide = el && el.closest('.slide');
+  if(!slide) return;
+  hooks.push({ slide, enter, leave });
+}
+function runHooks(){
+  hooks.forEach(h => {
+    const active = h.slide.classList.contains('active');
+    if(active && h.enter) h.enter();
+    if(!active && h.leave) h.leave();
+  });
+}
+
+/* ---------- navigation ---------- */
+counterEl.textContent = `1 / ${slides.length}`;
+function show(n){
+  const from = index;
+  index = (n + slides.length) % slides.length;
+  /* สไลด์ที่เพิ่งออกไปเท่านั้นที่ได้คลาส prev — ถ้าไม่กันไว้ การกด Home ตอนอยู่
+     หน้า Home อยู่แล้วจะทำให้สไลด์เดิมติดทั้ง active และ prev แล้วเลื่อนไปทางซ้าย */
+  slides.forEach((s,i) => {
+    s.classList.toggle('active', i === index);
+    s.classList.toggle('prev', i === from && i !== index);
+  });
+  counterEl.textContent = `${index+1} / ${slides.length}`;
+  progressEl.style.width = `${(index+1)/slides.length*100}%`;
+  runHooks();
+}
+function go(d){ show(index + d) }
+window.go = go; window.show = show;
+
+document.addEventListener('keydown', e => {
+  const tag = (document.activeElement?.tagName || '').toUpperCase();
+  if(['INPUT','TEXTAREA','SELECT'].includes(tag)) return;
+  const k = e.key;
+  if(['ArrowRight','ArrowDown','PageDown',' ','Enter'].includes(k)){ e.preventDefault(); go(1) }
+  else if(['ArrowLeft','ArrowUp','PageUp','Backspace'].includes(k)){ e.preventDefault(); go(-1) }
+  else if(k === 'Home'){ e.preventDefault(); show(0) }
+  else if(k === 'End'){ e.preventDefault(); show(slides.length-1) }
+  else if(k.toLowerCase() === 'h'){ e.preventDefault(); show(0) }
+  else if(k.toLowerCase() === 'f'){ e.preventDefault(); toggleFS() }
+  else if(/^[1-9]$/.test(k)){ e.preventDefault(); show(+k) }
+  else if(k === '0'){ e.preventDefault(); show(10) }
+});
+function toggleFS(){
+  if(!document.fullscreenElement) document.documentElement.requestFullscreen();
+  else document.exitFullscreen();
+}
+window.toggleFS = toggleFS;
+
+/* ============================================================
+   CONFIG PANEL — ช่องปรับค่าสดของทุกสไลด์ (หน้าตาเดียวกับ HUD สไลด์ 41)
+   cfg(hostId, [ {k,t,type,...} ], onChange) -> state object
+   type: range | num | text | pick | toggle | btn | enter | color | meter
+   ============================================================ */
+function cfg(hostId, list, onChange){
+  const host = document.getElementById(hostId);
+  const st = { $:{} };
+  if(!host) return st;
+  const toggle = document.createElement('button');
+  toggle.className = 'cfgToggle'; toggle.type = 'button'; toggle.textContent = '⚙ CONFIG';
+  toggle.onclick = () => host.classList.toggle('collapsed');
+  const body = document.createElement('div'); body.className = 'cfgBody';
+  host.appendChild(toggle); host.appendChild(body);
+
+  const fire = (k, v) => { st[k] = v; if(onChange) onChange(k, v, st); };
+
+  list.forEach(d => {
+    const g = document.createElement('div'); g.className = 'cfgGrp';
+    if(d.t && !['btn','toggle'].includes(d.type)){
+      const s = document.createElement('span'); s.textContent = d.t; g.appendChild(s);
+    }
+    if(d.type === 'btn'){
+      const b = document.createElement('button');
+      b.className = 'cfgBtn ' + (d.cls || 'act'); b.type = 'button'; b.textContent = d.t;
+      b.onclick = () => d.fn(st, b);
+      g.appendChild(b); if(d.k) st.$[d.k] = b;
+    }
+    else if(d.type === 'toggle'){
+      const b = document.createElement('button');
+      b.className = 'cfgBtn' + (d.v ? ' on' : ''); b.type = 'button'; b.textContent = d.t;
+      b.onclick = () => { const nv = !st[d.k]; b.classList.toggle('on', nv); fire(d.k, nv); };
+      g.appendChild(b); st[d.k] = d.v; st.$[d.k] = b;
+    }
+    else if(d.type === 'pick'){
+      d.opts.forEach(([val, lab]) => {
+        const b = document.createElement('button');
+        b.className = 'cfgBtn' + (val === d.v ? ' on' : ''); b.type = 'button'; b.textContent = lab;
+        b.dataset.v = val;
+        b.onclick = () => {
+          [...g.querySelectorAll('.cfgBtn')].forEach(x => x.classList.remove('on'));
+          b.classList.add('on'); fire(d.k, val);
+        };
+        g.appendChild(b);
+      });
+      st[d.k] = d.v;
+    }
+    else if(d.type === 'range'){
+      const i = document.createElement('input');
+      i.type = 'range'; i.className = 'cfgRange';
+      i.min = d.min; i.max = d.max; i.step = d.step || 1; i.value = d.v;
+      const vb = document.createElement('b'); vb.className = 'cfgVal';
+      const fmt = x => (d.fmt ? d.fmt(x) : x + (d.unit || ''));
+      vb.textContent = fmt(d.v);
+      i.oninput = () => { vb.textContent = fmt(+i.value); fire(d.k, +i.value); };
+      g.appendChild(i); g.appendChild(vb); st[d.k] = d.v; st.$[d.k] = i;
+    }
+    else if(d.type === 'num'){
+      const i = document.createElement('input');
+      i.type = 'number'; i.className = 'cfgNum';
+      i.min = d.min; i.max = d.max; i.step = d.step || 1; i.value = d.v;
+      const commit = () => {
+        let v = +i.value; if(!isFinite(v)) v = d.v;
+        if(d.step && d.step > 1) v = Math.round(v/d.step)*d.step;
+        v = Math.max(d.min, Math.min(d.max, v)); i.value = v; fire(d.k, v);
+      };
+      i.onchange = commit;
+      i.onkeydown = e => { if(e.key === 'Enter'){ e.stopPropagation(); commit(); i.blur(); } };
+      g.appendChild(i); st[d.k] = d.v; st.$[d.k] = i;
+    }
+    else if(d.type === 'text'){
+      const i = document.createElement('input');
+      i.type = 'text'; i.className = 'cfgNum cfgTxt'; i.value = d.v;
+      if(d.title) i.title = d.title;
+      const commit = () => fire(d.k, i.value);
+      i.onchange = commit;
+      i.onkeydown = e => { if(e.key === 'Enter'){ e.stopPropagation(); commit(); i.blur(); } };
+      g.appendChild(i); st[d.k] = d.v; st.$[d.k] = i;
+    }
+    else if(d.type === 'enter'){
+      const i = document.createElement('input');
+      i.type = 'text'; i.className = 'cfgEnter'; i.placeholder = d.ph || 'พิมพ์แล้วกด Enter';
+      i.onkeydown = e => { if(e.key === 'Enter'){ e.stopPropagation(); d.fn(i.value, st); i.value = ''; } };
+      g.appendChild(i); if(d.k) st.$[d.k] = i;
+    }
+    else if(d.type === 'color'){
+      const i = document.createElement('input');
+      i.type = 'color'; i.className = 'cfgCol'; i.value = d.v;
+      i.oninput = () => fire(d.k, i.value);
+      g.appendChild(i); st[d.k] = d.v; st.$[d.k] = i;
+    }
+    else if(d.type === 'meter'){
+      const m = document.createElement('span'); m.className = 'cfgMeter';
+      const b = document.createElement('i'); m.appendChild(b);
+      g.appendChild(m); st.$[d.k] = b;
+    }
+    body.appendChild(g);
+  });
+  return st;
+}
+/* "3-10" หรือ "5" -> [min,max] */
+function parseRange(txt, lo, hi, dflt){
+  const m = String(txt).match(/(\d+(?:\.\d+)?)\s*(?:[-–~]\s*(\d+(?:\.\d+)?))?/);
+  if(!m) return dflt;
+  const a = Math.max(lo, Math.min(hi, +m[1]));
+  const b = m[2] != null ? Math.max(lo, Math.min(hi, +m[2])) : a;
+  return [Math.min(a,b), Math.max(a,b)];
+}
+function hex2rgb(h){
+  const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(h);
+  return m ? [parseInt(m[1],16), parseInt(m[2],16), parseInt(m[3],16)] : [57,223,248];
+}
+function say(id, msg){ const e = document.getElementById(id); if(e) e.innerHTML = msg; }
+const isHttp = () => /^https?:$/.test(location.protocol);
+const FILE_MSG = 'เปิดจากไฟล์ตรง ๆ ใช้ไม่ได้ — ดับเบิลคลิก <b>START_LECTURE.bat</b> แล้วเปิดผ่าน localhost';
+
+/* ============================================================
+   SHARED CAMERA — เปิดครั้งเดียว ใช้ร่วมกันทุกสไลด์ที่ต้องใช้กล้อง
+   ============================================================ */
+const CAM = { stream:null, on:false };
+async function camStart(v){
+  if(!isHttp()) throw new Error('file');
+  if(!CAM.stream){
+    CAM.stream = await navigator.mediaDevices.getUserMedia({
+      video:{ width:{ideal:1280}, height:{ideal:720}, facingMode:'user' }, audio:false });
+  }
+  v.srcObject = CAM.stream;
+  await v.play();
+  CAM.on = true;
+}
+function camStop(){
+  CAM.stream && CAM.stream.getTracks().forEach(t => t.stop());
+  CAM.stream = null; CAM.on = false;
+  document.querySelectorAll('.demoStage video').forEach(v => { v.srcObject = null; });
+}
+/* ปุ่มเปิด/ปิดกล้องมาตรฐาน ใช้ซ้ำได้ทุกเดโม */
+function camButton(videoId, statId, onOpen, onClose){
+  return { t:'เปิดกล้อง', type:'btn', k:'cam', fn:async (st, b) => {
+    const v = document.getElementById(videoId);
+    if(CAM.on){ camStop(); b.textContent = 'เปิดกล้อง'; b.classList.remove('live');
+                onClose && onClose(st); say(statId, 'ปิดกล้องแล้ว'); return; }
+    if(!isHttp()){ say(statId, FILE_MSG); return; }
+    try{
+      say(statId, 'กำลังขอสิทธิ์กล้อง…');
+      await camStart(v);
+      b.textContent = 'ปิดกล้อง'; b.classList.add('live');
+      onOpen && onOpen(st);
+    }catch(err){
+      say(statId, 'เปิดกล้องไม่ได้ — ' + (err.name === 'NotAllowedError'
+        ? 'เบราว์เซอร์ไม่อนุญาต ลองกดไอคอนแม่กุญแจข้าง URL' : (err.message || err)));
+    }
+  }};
+}
+
+/* ---------- MediaPipe tasks-vision (โหลดครั้งเดียว) ---------- */
+const MP_CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision';
+const MP_MODEL = {
+  pose:'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
+  hand:'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
+  face:'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite',
+  seg :'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/1/selfie_segmenter.tflite'
+};
+let mpVision = null;
+async function mpLoad(){
+  if(mpVision) return mpVision;
+  const V = await import(MP_CDN + '/vision_bundle.mjs');
+  mpVision = { M:V, files: await V.FilesetResolver.forVisionTasks(MP_CDN + '/wasm') };
+  return mpVision;
+}
+
+/* ============================================================
+   SILHOUETTE FIELD — ตาราง occupancy 0..1 ของ "ตัวคน"
+   ใช้ MediaPipe Selfie Segmenter ถ้าโหลดได้ ถ้าไม่ได้ก็ถอยไปใช้
+   background subtraction (กดปุ่ม "จับพื้นหลัง" ตอนไม่มีคนอยู่หน้ากล้อง)
+   ============================================================ */
+const SIL = {
+  w:112, h:63, data:null, tmp:null, tctx:null,
+  seg:null, segBusy:false, lastT:-1, mode:'—',
+  bg:null, thr:26, has:false
+};
+function silInit(){
+  if(!SIL.data){
+    SIL.data = new Float32Array(SIL.w*SIL.h);
+    SIL.tmp  = document.createElement('canvas');
+    SIL.tmp.width = SIL.w; SIL.tmp.height = SIL.h;
+    SIL.tctx = SIL.tmp.getContext('2d', { willReadFrequently:true });
+  }
+}
+async function silLoadSeg(){
+  if(SIL.seg) return SIL.seg;
+  const { M, files } = await mpLoad();
+  SIL.seg = await M.ImageSegmenter.createFromOptions(files, {
+    baseOptions:{ modelAssetPath: MP_MODEL.seg, delegate:'GPU' },
+    runningMode:'VIDEO', outputCategoryMask:true, outputConfidenceMasks:false });
+  SIL.mode = 'segmenter';
+  return SIL.seg;
+}
+function silGrabBG(video){
+  silInit();
+  if(!video || video.readyState < 2) return false;
+  SIL.tctx.save(); SIL.tctx.scale(-1,1); SIL.tctx.drawImage(video, -SIL.w, 0, SIL.w, SIL.h); SIL.tctx.restore();
+  const d = SIL.tctx.getImageData(0,0,SIL.w,SIL.h).data;
+  SIL.bg = new Float32Array(SIL.w*SIL.h);
+  for(let i = 0, p = 0; i < SIL.bg.length; i++, p += 4)
+    SIL.bg[i] = (d[p]*0.299 + d[p+1]*0.587 + d[p+2]*0.114);
+  return true;
+}
+function silReset(){ SIL.data && SIL.data.fill(0); SIL.has = false; }
+function silUpdate(video){
+  silInit();
+  if(!video || video.readyState < 2){ return; }
+  /* --- ทางที่ 1: segmenter จริง --- */
+  if(SIL.seg && !SIL.segBusy && video.currentTime !== SIL.lastT){
+    SIL.lastT = video.currentTime; SIL.segBusy = true;
+    try{
+      SIL.seg.segmentForVideo(video, performance.now(), res => {
+        try{
+          const m = res.categoryMask;
+          if(m){
+            const arr = m.getAsUint8Array(), mw = m.width, mh = m.height;
+            for(let y = 0; y < SIL.h; y++){
+              const sy = Math.min(mh-1, (y*mh/SIL.h)|0);
+              for(let x = 0; x < SIL.w; x++){
+                /* ภาพบนจอถูกมิเรอร์ ตารางจึงต้องกลับด้าน x ให้ตรงกับที่ตาเห็น */
+                const sx = Math.min(mw-1, ((SIL.w-1-x)*mw/SIL.w)|0);
+                const v = arr[sy*mw + sx];
+                SIL.data[y*SIL.w + x] = v > 1 ? v/255 : v;
+              }
+            }
+            SIL.has = true;
+          }
+          res.close && res.close();
+        }catch(_){}
+        SIL.segBusy = false;
+      });
+      return;
+    }catch(_){ SIL.segBusy = false; }
+  }
+  if(SIL.seg) return;
+  /* --- ทางที่ 2: background subtraction --- */
+  SIL.mode = SIL.bg ? 'bg-diff' : 'no-bg';
+  SIL.tctx.save(); SIL.tctx.scale(-1,1); SIL.tctx.drawImage(video, -SIL.w, 0, SIL.w, SIL.h); SIL.tctx.restore();
+  const d = SIL.tctx.getImageData(0,0,SIL.w,SIL.h).data;
+  if(!SIL.bg){ SIL.data.fill(0); return; }
+  for(let i = 0, p = 0; i < SIL.data.length; i++, p += 4){
+    const l = d[p]*0.299 + d[p+1]*0.587 + d[p+2]*0.114;
+    const diff = Math.abs(l - SIL.bg[i]);
+    const v = Math.max(0, Math.min(1, (diff - SIL.thr) / (SIL.thr*1.6)));
+    SIL.data[i] += (v - SIL.data[i]) * 0.5;
+  }
+  SIL.has = true;
+}
+/* อ่านค่าที่พิกัด normalized 0..1 แบบ bilinear */
+function silAt(u, v){
+  if(!SIL.data || !SIL.has) return 0;
+  const x = Math.max(0, Math.min(SIL.w-1.001, u*(SIL.w-1)));
+  const y = Math.max(0, Math.min(SIL.h-1.001, v*(SIL.h-1)));
+  const x0 = x|0, y0 = y|0, fx = x-x0, fy = y-y0;
+  const a = SIL.data[y0*SIL.w+x0],     b = SIL.data[y0*SIL.w+x0+1];
+  const c = SIL.data[(y0+1)*SIL.w+x0], e = SIL.data[(y0+1)*SIL.w+x0+1];
+  return (a*(1-fx)+b*fx)*(1-fy) + (c*(1-fx)+e*fx)*fy;
+}
+
+/* ============================================================
+   MOTION FIELD — สำหรับ "เอามือโบก" (ต่างเฟรมแบบง่าย ๆ)
+   ============================================================ */
+const MOT = { w:96, h:54, data:null, prev:null, tmp:null, tctx:null };
+function motInit(){
+  if(MOT.data) return;
+  MOT.data = new Float32Array(MOT.w*MOT.h);
+  MOT.prev = new Float32Array(MOT.w*MOT.h);
+  MOT.tmp = document.createElement('canvas');
+  MOT.tmp.width = MOT.w; MOT.tmp.height = MOT.h;
+  MOT.tctx = MOT.tmp.getContext('2d', { willReadFrequently:true });
+}
+function motUpdate(video){
+  motInit();
+  if(!video || video.readyState < 2){ MOT.data.fill(0); return; }
+  MOT.tctx.save(); MOT.tctx.scale(-1,1); MOT.tctx.drawImage(video, -MOT.w, 0, MOT.w, MOT.h); MOT.tctx.restore();
+  const d = MOT.tctx.getImageData(0,0,MOT.w,MOT.h).data;
+  for(let i = 0, p = 0; i < MOT.data.length; i++, p += 4){
+    const l = d[p]*0.299 + d[p+1]*0.587 + d[p+2]*0.114;
+    MOT.data[i] = Math.abs(l - MOT.prev[i]);
+    MOT.prev[i] = l;
+  }
+}
+
+/* ============================================================
+   SHARED MICROPHONE (ระดับเสียง + สเปกตรัม)
+   ============================================================ */
+const MIC = { stream:null, ac:null, an:null, buf:null, freq:null, on:false, level:0 };
+async function micStart(fft){
+  if(!isHttp()) throw new Error('file');
+  micStop();
+  MIC.stream = await navigator.mediaDevices.getUserMedia({ audio:true });
+  const AC = window.AudioContext || window.webkitAudioContext;
+  MIC.ac = new AC();
+  const an = MIC.ac.createAnalyser();
+  an.fftSize = fft || 1024; an.smoothingTimeConstant = 0.72;
+  MIC.ac.createMediaStreamSource(MIC.stream).connect(an);
+  MIC.an = an;
+  MIC.buf  = new Uint8Array(an.fftSize);
+  MIC.freq = new Uint8Array(an.frequencyBinCount);
+  MIC.on = true;
+}
+function micStop(){
+  MIC.stream && MIC.stream.getTracks().forEach(t => t.stop());
+  if(MIC.ac){ try{ MIC.ac.close(); }catch(_){} }
+  MIC.stream = null; MIC.ac = null; MIC.an = null; MIC.on = false; MIC.level = 0;
+}
+function micRead(dt){
+  if(!MIC.an) return 0;
+  MIC.an.getByteTimeDomainData(MIC.buf);
+  let sum = 0;
+  for(let i = 0; i < MIC.buf.length; i++){ const v = (MIC.buf[i]-128)/128; sum += v*v; }
+  const raw = Math.min(1, Math.sqrt(sum/MIC.buf.length)*4.2);
+  MIC.level += (raw - MIC.level) * Math.min(1, (dt||0.016)*12);
+  MIC.an.getByteFrequencyData(MIC.freq);
+  return MIC.level;
+}
+
+/* ============================================================
+   HOME — การ์ดไอคอน + ตัวนับผู้เข้าชม
+   ============================================================ */
+const DEMOS = [
+  { i:1,  ic:'💠', t:'Particle Field',     d:'ผลัก · ดูดเก็บ · ปล่อยระเบิด',        tg:['เมาส์'] },
+  { i:2,  ic:'🎨', t:'Pointer Spray',      d:'ลากเมาส์แล้วพ่นสีเป็นหางยาว',        tg:['เมาส์'] },
+  { i:3,  ic:'📷', t:'Live Camera Track',  d:'Body / Skeleton / Hand / Face จริง',  tg:['กล้อง'] },
+  { i:4,  ic:'🎙️', t:'Speech → Physics',   d:'พูดแล้วคำร่วงลงมาเป็นวัตถุ',          tg:['ไมค์'] },
+  { i:5,  ic:'💧', t:'Waterfall Silhouette',d:'น้ำตกอนุภาคแหวกรอบตัวคน',           tg:['กล้อง','เมาส์'] },
+  { i:6,  ic:'🐟', t:'Fish School',        d:'ลากไล่ปลา · คลิกโปรยอาหาร',          tg:['เมาส์'] },
+  { i:7,  ic:'🪟', t:'Foggy Mirror',       d:'กระจกฝ้า โบกมือเช็ดแล้วเห็นหน้า',     tg:['กล้อง','เมาส์'] },
+  { i:8,  ic:'📌', t:'Pin Art Wall',       d:'ผนังเข็มพินอาร์ตดันตามร่างกาย',       tg:['กล้อง','เมาส์'] },
+  { i:9,  ic:'🌊', t:'Ripple Pool',        d:'ผิวน้ำกระเพื่อมจริงตามการเคลื่อนไหว',  tg:['เมาส์'] },
+  { i:10, ic:'🌌', t:'Aurora Flow Field',  d:'ริบบิ้นแสงไหลตาม noise field',        tg:['เมาส์'] },
+  { i:11, ic:'🧲', t:'Magnetic Sand',      d:'ผงเหล็กเรียงตัวตามสนามแม่เหล็ก',      tg:['เมาส์'] },
+  { i:12, ic:'🔮', t:'Kaleidoscope Paint', d:'วาดครั้งเดียว ได้ลายมันดาลา',         tg:['เมาส์'] },
+  { i:13, ic:'🧵', t:'Cloth & Rope',       d:'ผ้าแขวนที่ลากได้ ฉีกขาดได้',          tg:['เมาส์'] },
+  { i:14, ic:'🌲', t:'Audio Forest',       d:'เสียงทำให้ป่าแสงเติบโต',              tg:['ไมค์'] }
+];
+
+(function buildHome(){
+  const g = document.getElementById('homeGrid');
+  if(!g) return;
+  DEMOS.forEach(d => {
+    const b = document.createElement('button');
+    b.className = 'homeCard'; b.type = 'button';
+    b.onclick = () => show(d.i);
+    const tags = d.tg.map(x => {
+      const cls = x === 'กล้อง' ? ' cam' : x === 'ไมค์' ? ' mic' : '';
+      return `<span class="tg${cls}">${x}</span>`;
+    }).join('');
+    b.innerHTML = `<span class="ic">${d.ic}</span>`
+      + `<span class="n">DEMO ${String(d.i).padStart(2,'0')}</span>`
+      + `<span class="t">${d.t}</span><span class="d">${d.d}</span>`
+      + `<span class="tagRow">${tags}</span>`;
+    g.appendChild(b);
+  });
+  const leg = document.createElement('div');
+  leg.className = 'homeCard'; leg.style.cursor = 'default';
+  leg.onmouseenter = null;
+  leg.innerHTML = `<span class="ic">🧭</span><span class="n">HOW TO</span>`
+    + `<span class="t">อ่านก่อนเริ่ม</span>`
+    + `<span class="d">ทุกเดโมมีปุ่ม <b>⚙ CONFIG</b> มุมซ้ายบน กดเพื่อพับ/กางช่องปรับค่า</span>`
+    + `<span class="tagRow"><span class="tg cam">กล้อง</span><span class="tg mic">ไมค์</span>`
+    + `<span class="tg">ต้องเปิดผ่าน localhost</span></span>`;
+  g.appendChild(leg);
+})();
+
+/* ---------- visitor counter ----------
+   ลำดับที่ลอง: counterapi.dev -> countapi.xyz -> localStorage
+   อยากล็อกคีย์เอง (ย้ายโดเมนแล้วอยากให้ยอดต่อเนื่อง) แก้ที่ VIEW_KEY  */
+const VIEW_NS  = 'gino-immersive';
+const VIEW_KEY = 'interactive-demos';
+(function views(){
+  const num = document.getElementById('viewNum');
+  const lbl = document.getElementById('viewLbl');
+  if(!num) return;
+  const local = () => {
+    const k = 'views:' + VIEW_NS + ':' + VIEW_KEY;
+    const n = (+localStorage.getItem(k) || 0) + 1;
+    try{ localStorage.setItem(k, n); }catch(_){}
+    num.textContent = n.toLocaleString('en-US');
+    lbl.textContent = 'views (เครื่องนี้)';
+  };
+  if(!isHttp()){ local(); return; }
+  const urls = [
+    `https://api.counterapi.dev/v1/${VIEW_NS}/${VIEW_KEY}/up`,
+    `https://api.countapi.xyz/hit/${VIEW_NS}/${VIEW_KEY}`
+  ];
+  (async () => {
+    for(const u of urls){
+      try{
+        const r = await fetch(u, { cache:'no-store' });
+        if(!r.ok) continue;
+        const j = await r.json();
+        const n = j.count ?? j.value ?? j.data?.count;
+        if(typeof n === 'number'){
+          num.textContent = n.toLocaleString('en-US');
+          lbl.textContent = 'total views';
+          return;
+        }
+      }catch(_){}
+    }
+    local();
+  })();
+})();
+
+/* ============================================================
+   DEMO 01 — PARTICLE FIELD   (clone ของสไลด์ 39 + ช่อง config)
+   เมาส์ = ผลัก · คลิกค้าง = ดูดเก็บเป็นก้อน · ปล่อย = ระเบิด
+   ============================================================ */
+const D1 = { c:null, ctx:null, run:false, raf:0, p:[], held:0, shock:[],
+             m:{x:0,y:0,active:false,hold:false}, sMin:1, sMax:3 };
+const d1cfg = cfg('h1', [
+  { k:'n',    t:'จำนวน',   type:'num',   v:3200, min:100, max:30000, step:100 },
+  { k:'size', t:'ขนาด',    type:'text',  v:'1-3', title:'ใส่ช่วงขนาดเป็นพิกเซล เช่น 3-10 หรือตัวเลขเดียว' },
+  { k:'push', t:'แรงผลัก', type:'range', v:150, min:0,  max:420, unit:'px' },
+  { k:'grab', t:'รัศมีดูด',type:'range', v:190, min:40, max:600, unit:'px' },
+  { k:'trail',t:'หางเฟด',  type:'range', v:18,  min:2,  max:100, unit:'%' },
+  { k:'drag', t:'ความหนืด',type:'range', v:97,  min:80, max:100, unit:'%' },
+  { k:'hue',  t:'โทนสี',   type:'range', v:185, min:0,  max:359, unit:'°' },
+  { t:'รีเซ็ต', type:'btn', fn:() => d1Seed() }
+], (k) => { if(k === 'n' || k === 'size') d1Seed(); });
+
+function d1Seed(){
+  const c = D1.c || (D1.c = document.getElementById('c1'));
+  const cx = sizeCanvas(c); if(!cx) return;
+  D1.ctx = cx;
+  const w = c.clientWidth, h = c.clientHeight;
+  [D1.sMin, D1.sMax] = parseRange(d1cfg.size, 0.5, 40, [1,3]);
+  D1.p = Array.from({ length:d1cfg.n }, () => ({
+    x:Math.random()*w, y:Math.random()*h, vx:0, vy:0,
+    s:D1.sMin + Math.random()*(D1.sMax-D1.sMin),
+    held:false, ha:Math.random()*Math.PI*2, hr:Math.sqrt(Math.random()), cool:0 }));
+  D1.held = 0; D1.shock = [];
+}
+(function d1Bind(){
+  const c = document.getElementById('c1'); if(!c) return;
+  D1.c = c;
+  c.addEventListener('pointermove', e => { const t = localPt(c,e); D1.m.x = t.x; D1.m.y = t.y; D1.m.active = true; });
+  c.addEventListener('pointerleave', () => D1.m.active = false);
+  c.addEventListener('pointerdown', e => {
+    if(e.button !== 0) return;
+    const t = localPt(c,e); D1.m.x = t.x; D1.m.y = t.y; D1.m.active = true; D1.m.hold = true;
+    c.setPointerCapture && c.setPointerCapture(e.pointerId);
+  });
+  const rel = () => {
+    if(!D1.m.hold) return;
+    D1.m.hold = false;
+    const power = 3.4 + Math.min(26, D1.held*0.055);
+    let launched = 0;
+    D1.p.forEach(p => {
+      if(!p.held) return;
+      p.held = false; p.cool = 0.55;
+      let dx = p.x-D1.m.x, dy = p.y-D1.m.y, d = Math.hypot(dx,dy);
+      if(d < 0.6){ const a = Math.random()*Math.PI*2; dx = Math.cos(a); dy = Math.sin(a); d = 1; }
+      const k = power*(0.55 + Math.random()*0.9);
+      p.vx = dx/d*k; p.vy = dy/d*k; launched++;
+    });
+    if(launched) D1.shock.push({ x:D1.m.x, y:D1.m.y, t:0, n:launched });
+    D1.held = 0;
+  };
+  c.addEventListener('pointerup', rel);
+  c.addEventListener('pointercancel', rel);
+  window.addEventListener('pointerup', rel);
+  c.addEventListener('contextmenu', e => e.preventDefault());
+})();
+function d1Draw(){
+  if(!D1.run) return;
+  const c = D1.c, cx = sizeCanvas(c); if(cx) D1.ctx = cx;
+  const ctx = D1.ctx, w = c.clientWidth, h = c.clientHeight;
+  if(!ctx || !w || !h){ D1.raf = requestAnimationFrame(d1Draw); return; }
+  ctx.fillStyle = `rgba(5,7,20,${d1cfg.trail/100})`; ctx.fillRect(0,0,w,h);
+  const GRAB = d1cfg.grab, R = d1cfg.push, drag = d1cfg.drag/100;
+  const ball = 9 + 1.9*Math.sqrt(D1.held||1), spin = performance.now()/1000*1.1;
+  const m = D1.m;
+  let held = 0;
+  D1.p.forEach((p,i) => {
+    if(p.cool > 0) p.cool -= 1/60;
+    if(m.hold && m.active){
+      if(p.held){
+        const tx = m.x + Math.cos(p.ha+spin)*p.hr*ball;
+        const ty = m.y + Math.sin(p.ha+spin)*p.hr*ball;
+        p.vx += (tx-p.x)*0.30; p.vy += (ty-p.y)*0.30;
+        p.vx *= 0.62; p.vy *= 0.62;
+      } else if(p.cool <= 0){
+        const dx = m.x-p.x, dy = m.y-p.y, d = Math.hypot(dx,dy)+.1;
+        if(d < GRAB){
+          const pull = (1 - d/GRAB)*1.35 + 0.35;
+          p.vx += dx/d*pull; p.vy += dy/d*pull;
+          if(d < ball + 26) p.held = true;
+        }
+      }
+    } else if(p.held){ p.held = false; }
+    if(p.held) held++;
+    if(!p.held){
+      if(m.active && !m.hold && R > 0){
+        const dx = p.x-m.x, dy = p.y-m.y, d = Math.hypot(dx,dy)+.1;
+        if(d < R){ p.vx += dx/d*(R-d)*.006; p.vy += dy/d*(R-d)*.006 }
+      }
+      p.vx += Math.sin(p.y*.02+i)*.006;
+      p.vy += Math.cos(p.x*.02+i)*.006;
+      p.vx *= drag; p.vy *= drag;
+    }
+    p.x += p.vx; p.y += p.vy;
+    if(p.x < 0) p.x = w; if(p.x > w) p.x = 0;
+    if(p.y < 0) p.y = h; if(p.y > h) p.y = 0;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.held ? p.s*1.25 : p.s, 0, Math.PI*2);
+    ctx.fillStyle = p.held
+      ? `hsla(${52+(i%40)},100%,${68+Math.min(20,D1.held/60)}%,.95)`
+      : `hsla(${(d1cfg.hue + i%110)%360},90%,65%,.8)`;
+    ctx.fill();
+  });
+  D1.held = held;
+  if(m.hold && m.active){
+    const r = ball + 16 + Math.sin(performance.now()/140)*2;
+    ctx.strokeStyle = `hsla(52,100%,70%,${0.25+Math.min(.5, D1.held/700)})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(m.x, m.y, r, 0, Math.PI*2); ctx.stroke();
+    ctx.setLineDash([4,7]); ctx.strokeStyle = 'rgba(255,255,255,.16)';
+    ctx.beginPath(); ctx.arc(m.x, m.y, GRAB, 0, Math.PI*2); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(255,240,170,.9)'; ctx.textAlign = 'center';
+    ctx.font = '700 16px Anuphan, "Space Grotesk", sans-serif';
+    ctx.fillText(D1.held + ' เก็บแล้ว', m.x, m.y - r - 12);
+    ctx.textAlign = 'left';
+  }
+  D1.shock = D1.shock.filter(sh => {
+    sh.t += 1/60;
+    const f = sh.t/0.55;
+    if(f >= 1) return false;
+    ctx.strokeStyle = `rgba(255,220,120,${(1-f)*0.75})`;
+    ctx.lineWidth = 5*(1-f) + 1;
+    ctx.beginPath(); ctx.arc(sh.x, sh.y, 14 + f*(110 + Math.min(420, sh.n*1.1)), 0, Math.PI*2);
+    ctx.stroke();
+    return true;
+  });
+  D1.raf = requestAnimationFrame(d1Draw);
+}
+onSlide('#c1', {
+  enter(){ if(D1.run) return; d1Seed(); D1.run = true; d1Draw(); },
+  leave(){ D1.run = false; D1.m.hold = false; cancelAnimationFrame(D1.raf); }
+});
+
+/* ============================================================
+   DEMO 02 — POINTER SPRAY   (clone ของสไลด์ 40 + ช่อง config)
+   ============================================================ */
+const D2 = { c:null, ctx:null, run:false, raf:0, p:[], fresh:true, ptr:{x:0,y:0,active:false}, sMin:4, sMax:16 };
+const d2cfg = cfg('h2', [
+  { k:'rate', t:'ต่อเฟรม',  type:'range', v:5,  min:1,  max:30 },
+  { k:'size', t:'ขนาด',     type:'text',  v:'4-16' },
+  { k:'grav', t:'แรงโน้มถ่วง', type:'range', v:10, min:-40, max:80, fmt:x => (x/1000).toFixed(3) },
+  { k:'trail',t:'หางเฟด',   type:'range', v:18, min:2,  max:100, unit:'%' },
+  { k:'cap',  t:'เพดาน',    type:'num',   v:600, min:50, max:6000, step:50 },
+  { k:'shrink',t:'หด',      type:'range', v:99, min:90, max:100, unit:'%' },
+  { k:'mode', t:'สี',       type:'pick',  v:'rainbow', opts:[['rainbow','สุ่มสี'],['fixed','สีเดียว']] },
+  { k:'col',  t:'',         type:'color', v:'#39dff8' },
+  { t:'ล้างจอ', type:'btn', fn:() => { D2.p.length = 0; D2.fresh = true; } }
+], (k) => { if(k === 'size') [D2.sMin, D2.sMax] = parseRange(d2cfg.size, 0.5, 60, [4,16]); });
+[D2.sMin, D2.sMax] = parseRange(d2cfg.size, 0.5, 60, [4,16]);
+
+function d2Add(x, y){
+  const [a,b] = [D2.sMin, D2.sMax];
+  for(let i = 0; i < d2cfg.rate; i++)
+    D2.p.push({ x, y, vx:(Math.random()-.5)*4, vy:(Math.random()-.5)*4,
+                life:1, size:a + Math.random()*(b-a), h:Math.random()*360 });
+  if(D2.p.length > d2cfg.cap) D2.p.splice(0, D2.p.length - d2cfg.cap);
+}
+(function d2Bind(){
+  const c = document.getElementById('c2'); if(!c) return;
+  D2.c = c;
+  c.addEventListener('pointermove', e => { const p = localPt(c,e); D2.ptr = { x:p.x, y:p.y, active:true }; d2Add(p.x, p.y); });
+  c.addEventListener('pointerleave', () => { D2.ptr.active = false; });
+})();
+function d2Draw(){
+  if(!D2.run) return;
+  const c = D2.c, cx = sizeCanvas(c); if(cx) D2.ctx = cx;
+  const ctx = D2.ctx, w = c.clientWidth, h = c.clientHeight;
+  if(!ctx || !w || !h){ D2.raf = requestAnimationFrame(d2Draw); return; }
+  if(D2.fresh){ ctx.fillStyle = '#06041a'; ctx.fillRect(0,0,w,h); D2.fresh = false; }
+  ctx.fillStyle = `rgba(6,4,22,${d2cfg.trail/100})`; ctx.fillRect(0,0,w,h);
+  const t = Date.now();
+  const ex = D2.ptr.active ? D2.ptr.x : w/2 + Math.sin(t/800)*w*0.28;
+  const ey = D2.ptr.active ? D2.ptr.y : h/2 + Math.cos(t/1000)*h*0.24;
+  d2Add(ex, ey);
+  const g = d2cfg.grav/1000, sh = d2cfg.shrink/100;
+  D2.p.forEach(p => { p.x += p.vx; p.y += p.vy; p.vy += g; p.life *= .975; p.size *= sh; });
+  D2.p = D2.p.filter(p => p.life > .04);
+  const fixed = d2cfg.mode === 'fixed', [cr,cg,cb] = hex2rgb(d2cfg.col);
+  for(const p of D2.p){
+    ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(0.2, p.size), 0, Math.PI*2);
+    ctx.fillStyle = fixed ? `rgba(${cr},${cg},${cb},${p.life})` : `hsla(${p.h},92%,62%,${p.life})`;
+    ctx.fill();
+  }
+  ctx.beginPath(); ctx.arc(ex, ey, 30 + Math.sin(t/120)*10, 0, Math.PI*2);
+  ctx.strokeStyle = 'rgba(255,255,255,.8)'; ctx.lineWidth = 2; ctx.stroke();
+  D2.raf = requestAnimationFrame(d2Draw);
+}
+onSlide('#c2', {
+  enter(){ D2.fresh = true; D2.p.length = 0; D2.ptr.active = false;
+           if(D2.run) return; D2.run = true; d2Draw(); },
+  leave(){ D2.run = false; cancelAnimationFrame(D2.raf); }
+});
+
+/* ============================================================
+   DEMO 03 — LIVE CAMERA TRACKING  (clone ของสไลด์ 41)
+   Body/Skeleton ใช้ PoseLandmarker · Hand ใช้ HandLandmarker · Face ใช้ FaceDetector
+   จุดที่ตรวจได้ทำหน้าที่เป็น "เมาส์" ไปกวน particle
+   ============================================================ */
+const D3 = {
+  c:null, ctx:null, run:false, raf:0, busy:false, lastT:-1,
+  pose:null, hand:null, face:null,
+  pts:[], box:null, bones:[], head:null, fist:[], fistWas:[], burst:[],
+  p:[], spray:[], seeded:false, fps:0, frames:0, t0:0, sMin:1, sMax:3
+};
+const d3cfg = cfg('h3', [
+  camButton('v3', 's3',
+    st => { d3Load(); D3.t0 = performance.now(); D3.frames = 0; },
+    st => { D3.pts = []; D3.box = null; D3.bones = []; D3.head = null; }),
+  { k:'algo', t:'อัลกอริทึม', type:'pick', v:'body',
+    opts:[['body','Body'],['skeleton','Skeleton'],['hand','Hand'],['face','Face']] },
+  { k:'fx',   t:'เอฟเฟกต์',  type:'pick', v:'repel', opts:[['repel','ผลัก + ระเบิด'],['spray','พ่นสี']] },
+  { k:'show', t:'ภาพกล้อง',  type:'toggle', v:true },
+  { k:'op',   t:'',          type:'range', v:70, min:0, max:100, unit:'%' },
+  { k:'n',    t:'particle',  type:'num',  v:2600, min:100, max:30000, step:100 },
+  { k:'size', t:'ขนาด',      type:'text', v:'1-3' },
+  { k:'over', t:'เส้น track', type:'toggle', v:true }
+], (k, v) => {
+  if(k === 'algo'){
+    D3.pts = []; D3.box = null; D3.bones = []; D3.head = null; D3.fist = []; D3.fistWas = [];
+    if(CAM.on) d3Load();
+  }
+  if(k === 'fx'){ if(v === 'repel'){ D3.spray.length = 0; d3Seed(true); } else { D3.p.length = 0; } }
+  if(k === 'show' || k === 'op') d3Op();
+  if(k === 'n' || k === 'size'){ d3Seed(true); D3.spray.length = 0; D3.burst.length = 0; }
+});
+function d3Op(){
+  const v = document.getElementById('v3');
+  if(v) v.style.opacity = d3cfg.show ? d3cfg.op/100 : 0;
+}
+async function d3Load(){
+  const need = d3cfg.algo === 'hand' ? 'hand' : d3cfg.algo === 'face' ? 'face' : 'pose';
+  if(D3[need]) return;
+  try{
+    say('s3', 'กำลังโหลดโมเดล… (ครั้งแรกใช้เวลาสักครู่)');
+    const { M, files } = await mpLoad();
+    if(need === 'hand')
+      D3.hand = await M.HandLandmarker.createFromOptions(files, {
+        baseOptions:{ modelAssetPath:MP_MODEL.hand, delegate:'GPU' }, runningMode:'VIDEO', numHands:2 });
+    else if(need === 'face')
+      D3.face = await M.FaceDetector.createFromOptions(files, {
+        baseOptions:{ modelAssetPath:MP_MODEL.face, delegate:'GPU' }, runningMode:'VIDEO' });
+    else
+      D3.pose = await M.PoseLandmarker.createFromOptions(files, {
+        baseOptions:{ modelAssetPath:MP_MODEL.pose, delegate:'GPU' }, runningMode:'VIDEO', numPoses:1 });
+    say('s3', 'พร้อมแล้ว — <b>ขยับตัวหน้ากล้อง</b>');
+  }catch(err){
+    say('s3', 'โหลดโมเดลไม่สำเร็จ (ต้องต่อเน็ต) — ' + (err.message || err));
+  }
+}
+function d3Detect(v, w, h){
+  if(D3.busy) return;
+  const model = d3cfg.algo === 'hand' ? D3.hand : d3cfg.algo === 'face' ? D3.face : D3.pose;
+  if(!model || v.currentTime === D3.lastT) return;
+  D3.lastT = v.currentTime; D3.busy = true;
+  try{
+    const res = model.detectForVideo(v, performance.now());
+    const pts = [], bones = [];
+    const P = l => [ (1-l.x)*w, l.y*h ];              /* ภาพมิเรอร์ -> กลับ x */
+    const D = (p,q) => Math.hypot(p[0]-q[0], p[1]-q[1]);
+    D3.head = null; D3.box = null;
+    if(d3cfg.algo === 'hand'){
+      const fists = [];
+      (res.landmarks || []).forEach((hand, hi) => {
+        const wrist = P(hand[0]), mcp = P(hand[9]);
+        const span = D(wrist, mcp) || 1;
+        const reach = [8,12,16,20].reduce((a,i) => a + D(P(hand[i]), wrist), 0)/4;
+        const closed = reach/span < 1.55;
+        fists[hi] = closed;
+        const palm = [(wrist[0]+mcp[0])/2, (wrist[1]+mcp[1])/2];
+        if(closed) pts.push(palm);
+        else [4,8,12,16,20,0].forEach(i => hand[i] && pts.push(P(hand[i])));
+        const L = mpVision.M.HandLandmarker.HAND_CONNECTIONS || [];
+        L.forEach(c => bones.push([P(hand[c.start]), P(hand[c.end])]));
+      });
+      D3.fist = fists;
+    } else if(d3cfg.algo === 'face'){
+      (res.detections || []).forEach(d => {
+        const kp = (d.keypoints || []).map(P);
+        if(!kp.length) return;
+        kp.forEach(p => pts.push(p));
+        const xs = kp.map(p => p[0]), ys = kp.map(p => p[1]);
+        const cx = (Math.min(...xs)+Math.max(...xs))/2, cy = (Math.min(...ys)+Math.max(...ys))/2;
+        const r = Math.max(Math.max(...xs)-Math.min(...xs), Math.max(...ys)-Math.min(...ys))*0.95;
+        D3.head = [cx, cy, r, null];
+      });
+    } else {
+      const lm = (res.landmarks || [])[0];
+      if(lm){
+        if(d3cfg.algo === 'skeleton'){
+          lm.forEach((l,i) => { if(i > 10 && (l.visibility ?? 1) > .5) pts.push(P(l)); });
+          const L = mpVision.M.PoseLandmarker.POSE_CONNECTIONS || [];
+          L.forEach(c => { if(c.start > 10 && c.end > 10) bones.push([P(lm[c.start]), P(lm[c.end])]); });
+          const earL = P(lm[7]), earR = P(lm[8]), nose = P(lm[0]);
+          const hc = [(earL[0]+earR[0])/2, (earL[1]+earR[1])/2];
+          const r = Math.max(D(earL, earR)*0.72, 18);
+          const neck = [(P(lm[11])[0]+P(lm[12])[0])/2, (P(lm[11])[1]+P(lm[12])[1])/2];
+          D3.head = [hc[0] || nose[0], hc[1] || nose[1], r, neck];
+          pts.push([D3.head[0], D3.head[1]]);
+        } else {
+          const xs = lm.map(l => (1-l.x)*w), ys = lm.map(l => l.y*h);
+          D3.box = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+          pts.push([(D3.box[0]+D3.box[2])/2, (D3.box[1]+D3.box[3])/2]);
+        }
+      }
+    }
+    D3.pts = pts; D3.bones = bones;
+  }catch(_){}
+  D3.busy = false;
+}
+function d3Seed(force){
+  const c = document.getElementById('c3');
+  const w = c.clientWidth, h = c.clientHeight;
+  if(!w || !h) return;
+  if(D3.seeded && !force) return;
+  [D3.sMin, D3.sMax] = parseRange(d3cfg.size, 0.5, 40, [1,3]);
+  D3.p = Array.from({ length:d3cfg.n }, () => ({
+    x:Math.random()*w, y:Math.random()*h, vx:0, vy:0,
+    s:D3.sMin + Math.random()*(D3.sMax-D3.sMin),
+    held:null, cool:0, ha:Math.random()*Math.PI*2, hr:Math.sqrt(Math.random()) }));
+  D3.seeded = true;
+}
+function d3Repel(ctx, w, h, t){
+  ctx.clearRect(0,0,w,h);
+  const R = 190, GRAB = 210;
+  const grabbing = d3cfg.algo === 'hand' ? D3.pts.filter((_,i) => D3.fist[i]) : [];
+  D3.fist.forEach((now, i) => {
+    if(D3.fistWas[i] && !now && D3.pts[i]){
+      const c = D3.pts[i]; let n = 0;
+      D3.p.forEach(p => {
+        if(p.held !== i) return;
+        p.held = null; p.cool = .5;
+        let dx = p.x-c[0], dy = p.y-c[1], d = Math.hypot(dx,dy);
+        if(d < .6){ const a = Math.random()*Math.PI*2; dx = Math.cos(a); dy = Math.sin(a); d = 1; }
+        const k = (3.4 + Math.min(26, n*0.055))*(.55 + Math.random()*.9);
+        p.vx = dx/d*k; p.vy = dy/d*k; n++;
+      });
+      if(n) D3.burst.push({ x:c[0], y:c[1], t:0, n });
+    }
+  });
+  D3.fistWas = D3.fist.slice();
+  const ball = 9 + 1.9*Math.sqrt(Math.max(1, D3.p.filter(p => p.held != null).length));
+  const spin = t*1.1;
+  D3.p.forEach((p,i) => {
+    if(p.cool > 0) p.cool -= 1/60;
+    if(p.held != null && grabbing.length){
+      const c = D3.pts[p.held] || grabbing[0];
+      const tx = c[0] + Math.cos(p.ha+spin)*p.hr*ball;
+      const ty = c[1] + Math.sin(p.ha+spin)*p.hr*ball;
+      p.vx += (tx-p.x)*.30; p.vy += (ty-p.y)*.30; p.vx *= .62; p.vy *= .62;
+    } else {
+      if(p.held != null) p.held = null;
+      D3.pts.forEach(([mx,my], hi) => {
+        const dx = p.x-mx, dy = p.y-my, d = Math.hypot(dx,dy)+.1;
+        if(D3.fist[hi]){
+          if(d < GRAB && (p.cool||0) <= 0){
+            const pull = (1 - d/GRAB)*1.35 + .35;
+            p.vx -= dx/d*pull; p.vy -= dy/d*pull;
+            if(d < ball + 26){ p.held = hi; p.ha = Math.random()*Math.PI*2; p.hr = Math.sqrt(Math.random()); }
+          }
+        } else if(d < R){
+          p.vx += dx/d*(R-d)*.007; p.vy += dy/d*(R-d)*.007;
+        }
+      });
+      p.vx += Math.sin(p.y*.02+i)*.006; p.vy += Math.cos(p.x*.02+i)*.006;
+      p.vx *= .97; p.vy *= .97;
+    }
+    p.x += p.vx; p.y += p.vy;
+    if(p.x < 0) p.x = w; if(p.x > w) p.x = 0;
+    if(p.y < 0) p.y = h; if(p.y > h) p.y = 0;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.held != null ? p.s*1.25 : p.s, 0, Math.PI*2);
+    ctx.fillStyle = p.held != null ? `hsla(${52+(i%40)},100%,72%,.95)` : `hsla(${185+i%110},90%,65%,.8)`;
+    ctx.fill();
+  });
+  grabbing.forEach(c => {
+    ctx.strokeStyle = 'rgba(255,240,120,.5)'; ctx.lineWidth = 2; ctx.setLineDash([5,6]);
+    ctx.beginPath(); ctx.arc(c[0], c[1], GRAB, 0, Math.PI*2); ctx.stroke(); ctx.setLineDash([]);
+  });
+  D3.burst = D3.burst.filter(b => {
+    b.t += 1/60; const f = b.t/0.55;
+    if(f >= 1) return false;
+    ctx.strokeStyle = `rgba(255,220,120,${(1-f)*.75})`;
+    ctx.lineWidth = 5*(1-f)+1;
+    ctx.beginPath(); ctx.arc(b.x, b.y, 14 + f*(110 + Math.min(420, b.n*1.1)), 0, Math.PI*2);
+    ctx.stroke(); return true;
+  });
+}
+function d3Spray(ctx, w, h){
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.fillRect(0,0,w,h);
+  ctx.globalCompositeOperation = 'source-over';
+  D3.pts.forEach(([x,y]) => {
+    for(let i = 0; i < 4; i++)
+      D3.spray.push({ x, y, vx:(Math.random()-.5)*4, vy:(Math.random()-.5)*4,
+                      life:1, size:(D3.sMin + Math.random()*(D3.sMax-D3.sMin))*4, h:Math.random()*360 });
+  });
+  const cap = Math.round(d3cfg.n*0.64);
+  if(D3.spray.length > cap) D3.spray.splice(0, D3.spray.length-cap);
+  D3.spray.forEach(p => { p.x += p.vx; p.y += p.vy; p.vy += .01; p.life *= .975; p.size *= .99; });
+  D3.spray = D3.spray.filter(p => p.life > .04);
+  for(const p of D3.spray){
+    ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(.2,p.size), 0, Math.PI*2);
+    ctx.fillStyle = `hsla(${p.h},92%,62%,${p.life})`; ctx.fill();
+  }
+}
+function d3Track(ctx, t){
+  if(!d3cfg.over) return;
+  if(D3.box){
+    const [x0,y0,x1,y1] = D3.box;
+    ctx.strokeStyle = '#39dff8'; ctx.lineWidth = 3; ctx.setLineDash([12,8]);
+    ctx.strokeRect(x0, y0, x1-x0, y1-y0); ctx.setLineDash([]);
+    ctx.fillStyle = '#39dff8'; ctx.font = '700 16px "Space Grotesk", sans-serif';
+    ctx.fillText('BODY', x0, y0-10);
+  }
+  if(D3.head){
+    const [hx,hy,r,neck] = D3.head;
+    if(neck){ ctx.strokeStyle = 'rgba(199,255,75,.85)'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(hx, hy + r*0.9); ctx.lineTo(neck[0], neck[1]); ctx.stroke(); }
+    ctx.strokeStyle = '#c7ff4b'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(hx, hy, r, 0, Math.PI*2); ctx.stroke();
+    ctx.fillStyle = '#c7ff4b';
+    ctx.beginPath(); ctx.arc(hx, hy, 5, 0, Math.PI*2); ctx.fill();
+  }
+  if(D3.bones.length){
+    ctx.strokeStyle = 'rgba(199,255,75,.85)'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+    D3.bones.forEach(([a,b]) => { ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke(); });
+  }
+  D3.pts.forEach(([x,y]) => {
+    ctx.beginPath(); ctx.arc(x, y, 9, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(255,255,255,.92)'; ctx.fill();
+    ctx.beginPath(); ctx.arc(x, y, 20 + Math.sin(t*6)*4, 0, Math.PI*2);
+    ctx.strokeStyle = 'rgba(255,79,163,.75)'; ctx.lineWidth = 2; ctx.stroke();
+  });
+}
+function d3Draw(){
+  if(!D3.run) return;
+  const c = document.getElementById('c3'), v = document.getElementById('v3');
+  const cx = sizeCanvas(c); if(cx) D3.ctx = cx;
+  const ctx = D3.ctx, w = c.clientWidth, h = c.clientHeight;
+  if(!ctx || !w || !h){ D3.raf = requestAnimationFrame(d3Draw); return; }
+  const t = performance.now()/1000;
+  d3Seed(false);
+  if(CAM.on && v.readyState >= 2) d3Detect(v, w, h);
+  (d3cfg.fx === 'repel' ? d3Repel : d3Spray)(ctx, w, h, t);
+  d3Track(ctx, t);
+  if(CAM.on && ++D3.frames % 20 === 0){
+    D3.fps = Math.round(D3.frames / ((performance.now()-D3.t0)/1000));
+    const n = D3.pts.length;
+    const tip = d3cfg.algo === 'hand' ? ' · <b>กำมือ = ดูด, ปล่อย = ระเบิด</b>' : '';
+    say('s3', n ? `กำลัง track: <b>${n} จุด</b> · ${D3.fps} fps · ${d3cfg.algo}${tip}`
+                : `ยังไม่เจอคน — ถอยห่างกล้องให้เห็นตัวมากขึ้น · ${D3.fps} fps`);
+  }
+  D3.raf = requestAnimationFrame(d3Draw);
+}
+onSlide('#c3', {
+  enter(){ d3Seed(true); d3Op(); if(D3.run) return; D3.run = true; d3Draw(); },
+  leave(){ D3.run = false; cancelAnimationFrame(D3.raf);
+           if(CAM.on){ camStop(); const b = d3cfg.$.cam; if(b){ b.textContent = 'เปิดกล้อง'; b.classList.remove('live'); } } }
+});
+
+/* ============================================================
+   DEMO 04 — SPEECH → PHYSICS  (clone ของสไลด์ 42)
+   เสียง -> ข้อความ -> ก้อนคำที่มีมวลและแรงโน้มถ่วง
+   ============================================================ */
+const STT_PAL = ['#7CF2FF','#ff4fa3','#c7ff4b','#ffd56e','#8b6cff','#39dff8','#ff9b42'];
+const STT_DEMO = ['สวัสดี','ทุกคน','projection','mapping','สนุก','มาก','interactive','เสียง','กลายเป็น','วัตถุ'];
+const D4 = { c:null, ctx:null, run:false, raf:0, b:[], last:0, pulse:0,
+             rec:null, on:false, interim:'', queue:[], next:0 };
+const d4cfg = cfg('h4', [
+  { t:'● เปิดไมโครโฟน', type:'btn', k:'mic', fn:(st,b) => d4Toggle(b) },
+  { k:'lvl',  t:'',       type:'meter' },
+  { k:'lang', t:'ภาษา',   type:'pick', v:'th-TH', opts:[['th-TH','ไทย'],['en-US','EN']] },
+  { k:'type', t:'',       type:'enter', ph:'พิมพ์แล้วกด Enter', fn:v => d4Feed(v) },
+  { k:'g',    t:'แรงโน้มถ่วง', type:'range', v:1500, min:200, max:4000, step:50 },
+  { k:'fs',   t:'ขนาดคำ', type:'range', v:34, min:16, max:80, unit:'px' },
+  { k:'max',  t:'คำสูงสุด', type:'num', v:78, min:10, max:300, step:2 },
+  { t:'ยิงคำตัวอย่าง', type:'btn', fn:() => d4Feed(STT_DEMO.slice(0, 3+(Math.random()*4|0)).join(' ')) },
+  { t:'ล้างจอ', type:'btn', fn:() => { D4.b.length = 0; D4.queue.length = 0; D4.next = 0; } }
+]);
+function d4Mouth(w, h){ return { x:w*0.075, y:h - h*0.18, a:-Math.PI/4 }; }
+function d4Spawn(word){
+  const cv = D4.c;
+  if(!cv || !D4.ctx || !word) return;
+  const w = cv.clientWidth, h = cv.clientHeight, m = d4Mouth(w, h);
+  const fs = d4cfg.fs;
+  D4.ctx.font = `700 ${fs}px Anuphan, "Space Grotesk", system-ui, sans-serif`;
+  const bw = Math.min(w*0.32, D4.ctx.measureText(word).width + 10), bh = fs*1.2;
+  const sp = 980 + Math.random()*340, a = m.a + (Math.random()-0.5)*0.22;
+  D4.b.push({
+    x:m.x + Math.cos(a)*(96+Math.random()*26), y:m.y + Math.sin(a)*(96+Math.random()*26),
+    w:bw, h:bh, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp,
+    an:(Math.random()-0.5)*0.5, va:(Math.random()-0.5)*3.2, at0:(Math.random()-0.5)*0.26,
+    t:word, c:STT_PAL[(Math.random()*STT_PAL.length)|0], fs
+  });
+  D4.pulse = 1;
+  while(D4.b.length > d4cfg.max) D4.b.shift();
+}
+function d4Feed(text){
+  const ws = (text || '').trim().split(/\s+/).filter(Boolean);
+  ws.forEach((wd, i) => D4.queue.push({ w:wd, at:Math.max(performance.now(), D4.next) + i*230 }));
+  if(ws.length) D4.next = Math.max(performance.now(), D4.next) + ws.length*230;
+}
+async function d4Start(btn){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){ say('s4','เบราว์เซอร์นี้ยังไม่รองรับ Speech Recognition — เปิดด้วย Chrome หรือ Edge'); return; }
+  if(!isHttp()){ say('s4', FILE_MSG); return; }
+  try{ await micStart(512); }
+  catch(_){ say('s4','ยังไม่ได้รับอนุญาตให้ใช้ไมค์ — กดไอคอนแม่กุญแจข้าง URL แล้วเปิด Microphone'); return; }
+  D4.rec = new SR();
+  D4.rec.lang = d4cfg.lang; D4.rec.continuous = true; D4.rec.interimResults = true;
+  D4.rec.onresult = e => {
+    let interim = '';
+    for(let i = e.resultIndex; i < e.results.length; i++){
+      const r = e.results[i];
+      if(r.isFinal) d4Feed(r[0].transcript); else interim += r[0].transcript;
+    }
+    D4.interim = interim;
+  };
+  D4.rec.onerror = e => {
+    if(e.error === 'not-allowed' || e.error === 'service-not-allowed'){
+      D4.on = false; d4Btn(btn); say('s4','เบราว์เซอร์ไม่อนุญาตให้ใช้ไมค์ — ระหว่างนี้ใช้ช่องพิมพ์ได้');
+    }
+  };
+  D4.rec.onend = () => { if(D4.on){ try{ D4.rec.start(); }catch(_){} } };
+  try{ D4.rec.start(); D4.on = true; say('s4','กำลังฟัง… <b>พูดได้เลย</b>'); }
+  catch(_){ say('s4','เริ่มไมค์ไม่สำเร็จ ลองกดอีกครั้ง'); }
+  d4Btn(btn);
+}
+function d4Stop(btn){
+  D4.on = false; D4.interim = ''; micStop();
+  if(D4.rec){ try{ D4.rec.stop(); }catch(_){} D4.rec = null; }
+  say('s4','ปิดไมค์แล้ว — ยังพิมพ์ในช่อง CONFIG ได้');
+  d4Btn(btn);
+  const l = d4cfg.$.lvl; if(l) l.style.width = '0%';
+}
+function d4Toggle(btn){ D4.on ? d4Stop(btn) : d4Start(btn); }
+function d4Btn(btn){
+  const b = btn || d4cfg.$.mic; if(!b) return;
+  b.classList.toggle('live', D4.on);
+  b.textContent = D4.on ? '■ ปิดไมโครโฟน' : '● เปิดไมโครโฟน';
+}
+function d4Half(b){
+  const c = Math.abs(Math.cos(b.an)), s = Math.abs(Math.sin(b.an));
+  return [(b.w*c + b.h*s)/2, (b.w*s + b.h*c)/2];
+}
+function d4Physics(dt, w, h){
+  const G = d4cfg.g, floor = h - 10, B = D4.b;
+  for(const b of B){
+    b.vy += G*dt;
+    b.x += b.vx*dt; b.y += b.vy*dt;
+    b.an += b.va*dt; b.va *= Math.exp(-2.6*dt);
+    if(b.vx*b.vx + b.vy*b.vy < 2600){ b.an += (b.at0-b.an)*Math.min(1, dt*4); b.va *= 0.55; }
+    const [hw,hh] = d4Half(b);
+    if(b.y + hh > floor){
+      b.y = floor - hh;
+      if(b.vy > 0) b.vy = -b.vy*0.22;
+      b.vx *= 0.72; b.va *= 0.66;
+      if(Math.abs(b.vy) < 26){ b.vy = 0; b.vx *= Math.exp(-3.2*dt); }
+    }
+    if(b.x - hw < 6){ b.x = 6 + hw; b.vx = Math.abs(b.vx)*0.4; }
+    if(b.x + hw > w-6){ b.x = w-6-hw; b.vx = -Math.abs(b.vx)*0.4; }
+    if(!isFinite(b.x) || !isFinite(b.y)){ b.x = w*0.2; b.y = h*0.3; b.vx = b.vy = 0; }
+    b.vx = Math.max(-4200, Math.min(4200, b.vx));
+    b.vy = Math.max(-4200, Math.min(4200, b.vy));
+    b.va = Math.max(-9, Math.min(9, b.va));
+  }
+  for(let i = 0; i < B.length; i++){
+    const a = B[i], [ahw,ahh] = d4Half(a);
+    for(let j = i+1; j < B.length; j++){
+      const b = B[j], [bhw,bhh] = d4Half(b);
+      const dx = b.x-a.x, dy = b.y-a.y;
+      const px = (ahw+bhw)-Math.abs(dx), py = (ahh+bhh)-Math.abs(dy);
+      if(px <= 0 || py <= 0) continue;
+      const nx = px < py ? (dx < 0 ? -1 : 1) : 0, ny = px < py ? 0 : (dy < 0 ? -1 : 1);
+      const rel = (b.vx-a.vx)*nx + (b.vy-a.vy)*ny;
+      if(rel >= 0) continue;
+      const imp = -rel*0.5*1.06;
+      a.vx -= imp*nx; a.vy -= imp*ny; b.vx += imp*nx; b.vy += imp*ny;
+      if(ny){ a.vx *= 0.985; b.vx *= 0.985; a.va *= 0.86; b.va *= 0.86; }
+    }
+  }
+  for(let it = 0; it < 6; it++){
+    for(let i = 0; i < B.length; i++){
+      const a = B[i], [ahw,ahh] = d4Half(a);
+      for(let j = i+1; j < B.length; j++){
+        const b = B[j], [bhw,bhh] = d4Half(b);
+        const dx = b.x-a.x, dy = b.y-a.y;
+        const px = (ahw+bhw)-Math.abs(dx), py = (ahh+bhh)-Math.abs(dy);
+        if(px <= 0 || py <= 0) continue;
+        if(px < py){ const s = (dx < 0 ? -1 : 1)*px*0.5; a.x -= s; b.x += s; }
+        else { const s = (dy < 0 ? -1 : 1)*py*0.5; a.y -= s; b.y += s; }
+      }
+    }
+    const f2 = h - 10;
+    for(const b of B){
+      const [hw,hh] = d4Half(b);
+      if(b.y + hh > f2){ b.y = f2 - hh; if(b.vy > 0) b.vy = 0; }
+      if(b.y - hh < 4){ b.y = 4 + hh; if(b.vy < 0) b.vy = 0; }
+      if(b.x - hw < 6) b.x = 6 + hw;
+      if(b.x + hw > w-6) b.x = w-6-hw;
+    }
+  }
+}
+function d4Mega(ctx, w, h, t){
+  const m = d4Mouth(w, h), L = h*0.18;
+  ctx.save(); ctx.translate(m.x, m.y); ctx.rotate(m.a);
+  const puff = 1 + D4.pulse*0.10 + MIC.level*0.09;
+  ctx.scale(puff, puff);
+  for(let k = 0; k < 3; k++){
+    const f = ((t*1.1 + k/3) % 1);
+    ctx.strokeStyle = 'rgba(199,255,75,' + (0.42*(1-f)*(D4.on ? 0.55+MIC.level*0.9 : 0.30)) + ')';
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(L*0.62, 0, L*0.30 + f*L*0.55, -0.7, 0.7); ctx.stroke();
+  }
+  const g = ctx.createLinearGradient(-L*0.5, 0, L*0.55, 0);
+  g.addColorStop(0,'#3a4470'); g.addColorStop(1,'#aeb9e8');
+  ctx.fillStyle = g; ctx.strokeStyle = '#e8eeff'; ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(-L*0.46,-L*0.13); ctx.lineTo(L*0.50,-L*0.36);
+  ctx.lineTo(L*0.50, L*0.36);  ctx.lineTo(-L*0.46, L*0.13);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#0a1024';
+  ctx.beginPath(); ctx.ellipse(L*0.50, 0, L*0.09, L*0.36, 0, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = '#e8eeff'; ctx.stroke();
+  ctx.fillStyle = '#2b3358'; ctx.strokeStyle = '#c9d3f0'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.roundRect(-L*0.72,-L*0.14, L*0.30, L*0.28, L*0.06); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.roundRect(-L*0.40, L*0.16, L*0.10, L*0.30, 4); ctx.fill(); ctx.stroke();
+  ctx.restore();
+  if(D4.on){
+    ctx.fillStyle = '#ff4fa3';
+    ctx.beginPath(); ctx.arc(m.x - L*0.62, m.y - L*0.46, 6 + D4.pulse*3, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#ffb7d8'; ctx.font = '700 13px "Space Grotesk", sans-serif';
+    ctx.textAlign = 'left'; ctx.fillText('LIVE', m.x - L*0.50, m.y - L*0.42);
+  }
+}
+function d4Draw(){
+  if(!D4.run) return;
+  const cv = D4.c, cx = sizeCanvas(cv); if(cx) D4.ctx = cx;
+  const ctx = D4.ctx, w = cv.clientWidth, h = cv.clientHeight;
+  if(!ctx || !w || !h){ D4.raf = requestAnimationFrame(d4Draw); return; }
+  const now = performance.now(), t = now/1000;
+  let dt = D4.last ? (now-D4.last)/1000 : 0.016; D4.last = now;
+  dt = Math.min(0.033, dt);
+  while(D4.queue.length && D4.queue[0].at <= now) d4Spawn(D4.queue.shift().w);
+  D4.pulse *= Math.exp(-5*dt);
+  if(MIC.an){
+    micRead(dt);
+    const l = d4cfg.$.lvl; if(l) l.style.width = (MIC.level*100).toFixed(0) + '%';
+  }
+  d4Physics(dt*0.5, w, h); d4Physics(dt*0.5, w, h);
+  ctx.clearRect(0,0,w,h);
+  const bg = ctx.createLinearGradient(0,0,0,h);
+  bg.addColorStop(0,'#070c1c'); bg.addColorStop(1,'#04060f');
+  ctx.fillStyle = bg; ctx.fillRect(0,0,w,h);
+  ctx.strokeStyle = 'rgba(255,255,255,.04)'; ctx.lineWidth = 1;
+  for(let x = 0; x < w; x += 48){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h); ctx.stroke(); }
+  for(let y = 0; y < h; y += 48){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke(); }
+  ctx.fillStyle = 'rgba(255,255,255,.05)'; ctx.fillRect(0, h-10, w, 10);
+  for(const b of D4.b){
+    if(!isFinite(b.x) || !isFinite(b.y) || !isFinite(b.an)) continue;
+    ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.an);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = `700 ${b.fs}px Anuphan, "Space Grotesk", system-ui, sans-serif`;
+    ctx.fillStyle = b.c; ctx.fillText(b.t, 0, 1);
+    ctx.restore();
+  }
+  ctx.textBaseline = 'alphabetic';
+  d4Mega(ctx, w, h, t);
+  if(D4.interim){
+    ctx.font = '600 24px Anuphan, system-ui, sans-serif'; ctx.textAlign = 'left';
+    ctx.fillStyle = 'rgba(199,255,75,.75)';
+    ctx.fillText('… ' + D4.interim, w*0.075, h*0.16, w*0.7);
+  }
+  ctx.fillStyle = 'rgba(255,255,255,.26)'; ctx.textAlign = 'left';
+  ctx.font = '700 13px "Space Grotesk", sans-serif';
+  ctx.fillText(D4.b.length + ' WORDS · GRAVITY ' + d4cfg.g + ' px/s²', 18, h-18);
+  D4.raf = requestAnimationFrame(d4Draw);
+}
+onSlide('#c4', {
+  enter(){ D4.c = document.getElementById('c4'); D4.last = 0;
+           if(!isHttp()) say('s4', FILE_MSG + ' — ระหว่างนี้พิมพ์ในช่อง CONFIG แล้วกด Enter ได้');
+           if(D4.run) return; D4.run = true; d4Draw(); },
+  leave(){ D4.run = false; cancelAnimationFrame(D4.raf); if(D4.on) d4Stop(); }
+});
+
+/* ============================================================
+   DEMO 05 — WATERFALL SILHOUETTE
+   ม่านน้ำอนุภาคไหลลงมา แล้วแหวกออกรอบ ๆ ตัวคนที่กล้องมองเห็น
+   ถ้าไม่มีกล้อง ใช้เมาส์เป็น "ตัวคน" ทดสอบได้เลย
+   ============================================================ */
+const D5 = { c:null, ctx:null, run:false, raf:0, p:[], splash:[], m:{x:-1,y:-1,in:false}, segTried:false };
+const d5cfg = cfg('h5', [
+  camButton('v5','s5',
+    async () => {
+      say('s5','กำลังโหลดโมเดลแยกร่างคน…');
+      try{ await silLoadSeg(); say('s5','พร้อมแล้ว — <b>เดินเข้าไปยืนใต้น้ำตก</b>'); }
+      catch(_){ say('s5','โหลดโมเดลไม่ได้ (ออฟไลน์) — ใช้โหมด <b>จับพื้นหลัง</b> แทน: เดินออกจากเฟรมแล้วกดปุ่มนั้น'); }
+      d5cfg.src = 'cam'; syncPick('h5','src','cam');
+    },
+    () => { silReset(); }),
+  { t:'จับพื้นหลัง', type:'btn', fn:() => {
+      const ok = silGrabBG(document.getElementById('v5'));
+      say('s5', ok ? 'จับพื้นหลังแล้ว — เดินเข้าเฟรมได้เลย' : 'ยังไม่มีภาพจากกล้อง กดเปิดกล้องก่อน'); } },
+  { k:'src',  t:'ต้นทาง',  type:'pick', v:'mouse', opts:[['cam','กล้อง'],['mouse','เมาส์']] },
+  { k:'n',    t:'จำนวน',   type:'num',  v:4200, min:200, max:30000, step:100 },
+  { k:'g',    t:'แรงโน้มถ่วง', type:'range', v:26, min:4, max:120, fmt:x => (x/100).toFixed(2) },
+  { k:'thr',  t:'ความไวมาสก์', type:'range', v:45, min:5, max:95, unit:'%' },
+  { k:'force',t:'แรงแหวก', type:'range', v:60, min:5, max:200 },
+  { k:'wid',  t:'ขนาดหยด', type:'range', v:18, min:5, max:60, fmt:x => (x/10).toFixed(1)+'px' },
+  { k:'col',  t:'สีน้ำ',   type:'color', v:'#7CF2FF' },
+  { k:'op',   t:'ภาพกล้อง',type:'range', v:32, min:0, max:100, unit:'%' },
+  { k:'mask', t:'โชว์มาสก์', type:'toggle', v:false }
+], (k,v) => {
+  if(k === 'n') d5Seed();
+  if(k === 'op'){ const el = document.getElementById('v5'); if(el) el.style.opacity = v/100; }
+});
+/* ปรับปุ่ม pick จากโค้ด (ใช้ตอนเปิดกล้องแล้วสลับ src ให้อัตโนมัติ) */
+function syncPick(hostId, key, val){
+  const host = document.getElementById(hostId); if(!host) return;
+  host.querySelectorAll('.cfgGrp').forEach(g => {
+    const btns = [...g.querySelectorAll('.cfgBtn')];
+    if(!btns.length) return;
+    const hit = btns.find(b => b.dataset.v === val);
+    if(hit){ btns.forEach(b => b.classList.remove('on')); hit.classList.add('on'); }
+  });
+}
+function d5Seed(){
+  const c = D5.c || (D5.c = document.getElementById('c5'));
+  const w = c.clientWidth || 1600, h = c.clientHeight || 800;
+  D5.p = Array.from({ length:d5cfg.n }, () => ({
+    x:Math.random()*w, y:Math.random()*h, vx:(Math.random()-.5)*.4, vy:1+Math.random()*4,
+    r:0.35 + Math.random()*0.65, hue:Math.random() }));
+  D5.splash.length = 0;
+}
+(function d5Bind(){
+  const c = document.getElementById('c5'); if(!c) return;
+  D5.c = c;
+  c.addEventListener('pointermove', e => { const p = localPt(c,e); D5.m.x = p.x; D5.m.y = p.y; D5.m.in = true; });
+  c.addEventListener('pointerleave', () => D5.m.in = false);
+})();
+function d5Draw(){
+  if(!D5.run) return;
+  const c = D5.c, cx = sizeCanvas(c); if(cx) D5.ctx = cx;
+  const ctx = D5.ctx, w = c.clientWidth, h = c.clientHeight;
+  if(!ctx || !w || !h){ D5.raf = requestAnimationFrame(d5Draw); return; }
+  const useCam = d5cfg.src === 'cam' && CAM.on;
+  if(useCam) silUpdate(document.getElementById('v5'));
+
+  const thr = d5cfg.thr/100, F = d5cfg.force/100, G = d5cfg.g/100;
+  const MR = Math.min(w,h)*0.17;                 /* รัศมี "ตัวคน" จำลองด้วยเมาส์ */
+  const occ = (x, y) => {
+    if(useCam) return silAt(x/w, y/h);
+    if(!D5.m.in) return 0;
+    const d = Math.hypot(x-D5.m.x, y-D5.m.y);
+    return Math.max(0, Math.min(1, (MR-d)/(MR*0.55)));
+  };
+
+  ctx.fillStyle = 'rgba(4,7,18,.30)'; ctx.fillRect(0,0,w,h);
+  if(d5cfg.mask){                                 /* ดูว่ามาสก์เห็นอะไร */
+    const gw = 60, gh = 34;
+    for(let j = 0; j < gh; j++) for(let i = 0; i < gw; i++){
+      const v = occ((i+.5)*w/gw, (j+.5)*h/gh);
+      if(v <= 0.04) continue;
+      ctx.fillStyle = `rgba(255,79,163,${v*0.30})`;
+      ctx.fillRect(i*w/gw, j*h/gh, w/gw+1, h/gh+1);
+    }
+  }
+  const [cr,cg,cb] = hex2rgb(d5cfg.col);
+  const wid = d5cfg.wid/10;
+  ctx.lineCap = 'round';
+  const e = Math.max(6, w/160);
+  for(const p of D5.p){
+    const px = p.x, py = p.y;
+    p.vy += G;
+    const o = occ(p.x, p.y);
+    if(o > thr){
+      /* หาทิศ "ออกจากตัวคน" จาก gradient ของมาสก์ */
+      const gx = occ(p.x+e, p.y) - occ(p.x-e, p.y);
+      const gy = occ(p.x, p.y+e) - occ(p.x, p.y-e);
+      const L = Math.hypot(gx, gy) || 1;
+      p.vx -= gx/L * F * (0.6 + o);
+      p.vy -= gy/L * F * (0.6 + o) * 0.55;
+      p.vy *= 0.86;
+      if(Math.random() < 0.06)
+        D5.splash.push({ x:p.x, y:p.y, vx:(Math.random()-.5)*3.4, vy:-Math.random()*2.2, life:1 });
+    }
+    p.vx *= 0.965; p.vy = Math.min(p.vy, 26);
+    p.x += p.vx; p.y += p.vy;
+    let sx = px, sy = py;
+    if(p.y > h + 8 || p.x < -30 || p.x > w+30){
+      p.x = Math.random()*w; p.y = -Math.random()*40; p.vx = (Math.random()-.5)*.4; p.vy = 1+Math.random()*3;
+      sx = p.x; sy = p.y;                      /* เกิดใหม่ที่ยอดน้ำตก อย่าลากเส้นข้ามจอ */
+    }
+    const a = Math.min(.95, .28 + Math.abs(p.vy)*.05);
+    ctx.strokeStyle = `rgba(${cr},${cg},${cb},${a})`;
+    ctx.lineWidth = wid*p.r;
+    ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(p.x, p.y); ctx.stroke();
+  }
+  D5.splash = D5.splash.filter(s => {
+    s.x += s.vx; s.y += s.vy; s.vy += 0.16; s.life -= 0.028;
+    if(s.life <= 0) return false;
+    ctx.fillStyle = `rgba(255,255,255,${s.life*0.7})`;
+    ctx.beginPath(); ctx.arc(s.x, s.y, 1.6*s.life + .6, 0, Math.PI*2); ctx.fill();
+    return true;
+  });
+  if(!useCam && D5.m.in){
+    ctx.strokeStyle = 'rgba(255,255,255,.16)'; ctx.lineWidth = 1.5; ctx.setLineDash([6,8]);
+    ctx.beginPath(); ctx.arc(D5.m.x, D5.m.y, MR, 0, Math.PI*2); ctx.stroke(); ctx.setLineDash([]);
+  }
+  D5.raf = requestAnimationFrame(d5Draw);
+}
+onSlide('#c5', {
+  enter(){ d5Seed(); const v = document.getElementById('v5'); if(v) v.style.opacity = d5cfg.op/100;
+           if(D5.run) return; D5.run = true; d5Draw(); },
+  leave(){ D5.run = false; cancelAnimationFrame(D5.raf);
+           if(CAM.on){ camStop(); const b = d5cfg.$.cam; if(b){ b.textContent = 'เปิดกล้อง'; b.classList.remove('live'); } } }
+});
+
+/* ============================================================
+   DEMO 06 — FISH SCHOOL
+   ลากเมาส์ = ปลาตกใจว่ายหนี · คลิก = โปรยอาหาร ปลาจะว่ายเข้ามากิน
+   (boids: separation + alignment + cohesion + flee + seek)
+   ============================================================ */
+const D6 = { c:null, ctx:null, run:false, raf:0, f:[], food:[], bub:[],
+             m:{x:0,y:0,in:false,down:false}, t:0 };
+const d6cfg = cfg('h6', [
+  { k:'n',    t:'จำนวนปลา', type:'num',  v:140, min:10, max:900, step:10 },
+  { k:'sp',   t:'ความเร็ว', type:'range',v:26, min:6,  max:70, fmt:x => (x/10).toFixed(1) },
+  { k:'fear', t:'ระยะกลัว', type:'range',v:170,min:0,  max:520, unit:'px' },
+  { k:'smell',t:'ระยะดมอาหาร', type:'range', v:360, min:60, max:1200, unit:'px' },
+  { k:'coh',  t:'รวมฝูง',  type:'range', v:45, min:0,  max:100, unit:'%' },
+  { k:'sep',  t:'ระยะห่าง',type:'range', v:26, min:8,  max:80, unit:'px' },
+  { k:'sz',   t:'ขนาดปลา', type:'range', v:15, min:5,  max:48, unit:'px' },
+  { k:'col',  t:'สี',      type:'color', v:'#ffd56e' },
+  { k:'rain', t:'สีรุ้ง',   type:'toggle', v:true },
+  { k:'link', t:'เส้นฝูง',  type:'toggle', v:false },
+  { t:'เก็บอาหาร', type:'btn', fn:() => D6.food.length = 0 }
+], k => { if(k === 'n') d6Seed(); });
+
+function d6Seed(){
+  const c = D6.c || (D6.c = document.getElementById('c6'));
+  const w = c.clientWidth || 1600, h = c.clientHeight || 800;
+  D6.f = Array.from({ length:d6cfg.n }, () => {
+    const a = Math.random()*Math.PI*2, s = 1 + Math.random()*2;
+    return { x:Math.random()*w, y:Math.random()*h, vx:Math.cos(a)*s, vy:Math.sin(a)*s,
+             ph:Math.random()*Math.PI*2, hue:Math.random()*60 - 30, fright:0 };
+  });
+  D6.bub = Array.from({ length:46 }, () => ({
+    x:Math.random()*w, y:Math.random()*h, r:1+Math.random()*3.5, s:.2+Math.random()*.6 }));
+}
+(function d6Bind(){
+  const c = document.getElementById('c6'); if(!c) return;
+  D6.c = c;
+  c.addEventListener('pointermove', e => { const p = localPt(c,e); D6.m.x = p.x; D6.m.y = p.y; D6.m.in = true; });
+  c.addEventListener('pointerleave', () => { D6.m.in = false; D6.m.down = false; });
+  c.addEventListener('pointerdown', e => {
+    const p = localPt(c,e); D6.m.down = true; D6.m.x = p.x; D6.m.y = p.y;
+    for(let i = 0; i < 7; i++)
+      D6.food.push({ x:p.x + (Math.random()-.5)*54, y:p.y + (Math.random()-.5)*40,
+                     vy:.25 + Math.random()*.5, life:1, r:2.4 + Math.random()*2 });
+    if(D6.food.length > 260) D6.food.splice(0, D6.food.length-260);
+  });
+  c.addEventListener('pointerup', () => D6.m.down = false);
+})();
+function d6Fish(ctx, f, L, t, col, rain){
+  const a = Math.atan2(f.vy, f.vx);
+  const wag = Math.sin(t*7 + f.ph) * 0.5;
+  ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(a);
+  const c = rain ? `hsl(${(38+f.hue+360)%360},95%,${58+f.fright*18}%)` : col;
+  ctx.fillStyle = c;
+  ctx.beginPath(); ctx.ellipse(0, 0, L, L*0.42, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath();                                   /* หาง */
+  ctx.moveTo(-L*0.86, 0);
+  ctx.lineTo(-L*1.75, -L*0.5 + wag*L*0.55);
+  ctx.lineTo(-L*1.75,  L*0.5 + wag*L*0.55);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.55)';           /* ครีบบน */
+  ctx.beginPath(); ctx.moveTo(-L*0.1, -L*0.34); ctx.lineTo(L*0.22, -L*0.92);
+  ctx.lineTo(L*0.36, -L*0.24); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#06101f';
+  ctx.beginPath(); ctx.arc(L*0.55, -L*0.10, Math.max(1, L*0.11), 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+function d6Draw(){
+  if(!D6.run) return;
+  const c = D6.c, cx = sizeCanvas(c); if(cx) D6.ctx = cx;
+  const ctx = D6.ctx, w = c.clientWidth, h = c.clientHeight;
+  if(!ctx || !w || !h){ D6.raf = requestAnimationFrame(d6Draw); return; }
+  D6.t += 1/60; const t = D6.t;
+
+  const bg = ctx.createLinearGradient(0,0,0,h);
+  bg.addColorStop(0,'#04203a'); bg.addColorStop(.55,'#052033'); bg.addColorStop(1,'#020c18');
+  ctx.fillStyle = bg; ctx.fillRect(0,0,w,h);
+  ctx.save();                                        /* ลำแสงจากผิวน้ำ */
+  ctx.globalCompositeOperation = 'lighter';
+  for(let i = 0; i < 6; i++){
+    const x = (i+0.5)*w/6 + Math.sin(t*0.35 + i)*60;
+    const g = ctx.createLinearGradient(x, 0, x - 130, h);
+    g.addColorStop(0,'rgba(120,220,255,.10)'); g.addColorStop(1,'rgba(120,220,255,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.moveTo(x-60,0); ctx.lineTo(x+60,0); ctx.lineTo(x-90,h); ctx.lineTo(x-210,h);
+    ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+  D6.bub.forEach(b => {
+    b.y -= b.s; if(b.y < -6){ b.y = h + 6; b.x = Math.random()*w; }
+    ctx.strokeStyle = 'rgba(180,230,255,.22)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(b.x + Math.sin(t*1.6 + b.y*0.02)*5, b.y, b.r, 0, Math.PI*2); ctx.stroke();
+  });
+
+  /* ---- อาหาร ---- */
+  D6.food = D6.food.filter(f => {
+    f.y += f.vy; f.vy = Math.min(f.vy + 0.004, 1.1); f.life -= 0.0016;
+    if(f.y > h - 4){ f.y = h - 4; f.life -= 0.006; }
+    if(f.life <= 0) return false;
+    ctx.fillStyle = `rgba(255,196,110,${Math.min(1,f.life)})`;
+    ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, Math.PI*2); ctx.fill();
+    return true;
+  });
+
+  /* ---- boids ---- */
+  const F = D6.f, N = F.length;
+  const SP = d6cfg.sp/10, FEAR = d6cfg.fear, SMELL = d6cfg.smell;
+  const SEP = d6cfg.sep, COH = d6cfg.coh/100;
+  const L = d6cfg.sz, rain = d6cfg.rain, col = d6cfg.col;
+  const NEI = Math.max(SEP*2.6, 70);
+  for(let i = 0; i < N; i++){
+    const f = F[i];
+    let sx = 0, sy = 0, ax = 0, ay = 0, cx2 = 0, cy2 = 0, n = 0;
+    for(let j = 0; j < N; j++){
+      if(j === i) continue;
+      const o = F[j], dx = o.x-f.x, dy = o.y-f.y;
+      const d2 = dx*dx + dy*dy;
+      if(d2 > NEI*NEI) continue;
+      const d = Math.sqrt(d2) + .001;
+      if(d < SEP){ sx -= dx/d*(SEP-d); sy -= dy/d*(SEP-d); }
+      ax += o.vx; ay += o.vy; cx2 += o.x; cy2 += o.y; n++;
+    }
+    if(n){
+      f.vx += (ax/n - f.vx)*0.035;
+      f.vy += (ay/n - f.vy)*0.035;
+      f.vx += (cx2/n - f.x)*0.0011*COH;
+      f.vy += (cy2/n - f.y)*0.0011*COH;
+    }
+    f.vx += sx*0.030; f.vy += sy*0.030;
+
+    /* หนีเมาส์ (ยิ่งลากยิ่งกลัว) */
+    if(D6.m.in && FEAR > 0){
+      const dx = f.x-D6.m.x, dy = f.y-D6.m.y, d = Math.hypot(dx,dy)+.1;
+      const R = FEAR * (D6.m.down ? 1.35 : 1);
+      if(d < R){
+        const k = (1 - d/R);
+        f.vx += dx/d*k*1.5; f.vy += dy/d*k*1.5;
+        f.fright = Math.min(1, f.fright + k*0.25);
+      }
+    }
+    /* ตามอาหารที่ใกล้ที่สุด */
+    let best = null, bd = SMELL;
+    for(const fd of D6.food){
+      const d = Math.hypot(fd.x-f.x, fd.y-f.y);
+      if(d < bd){ bd = d; best = fd; }
+    }
+    if(best){
+      const dx = best.x-f.x, dy = best.y-f.y, d = bd + .1;
+      const eager = 1 - Math.min(1, f.fright);
+      f.vx += dx/d*0.42*eager; f.vy += dy/d*0.42*eager;
+      if(d < L*0.9){ best.life -= 0.34; }
+    }
+    f.fright *= 0.965;
+
+    /* ขอบจอ = ผนังตู้ */
+    const M = 60;
+    if(f.x < M) f.vx += (M-f.x)*0.008;
+    if(f.x > w-M) f.vx -= (f.x-(w-M))*0.008;
+    if(f.y < M) f.vy += (M-f.y)*0.008;
+    if(f.y > h-M) f.vy -= (f.y-(h-M))*0.008;
+
+    f.vx += (Math.random()-.5)*0.06; f.vy += (Math.random()-.5)*0.06;
+    const sp = Math.hypot(f.vx, f.vy) || .001;
+    const target = SP*(1 + f.fright*1.4);
+    const cl = Math.min(target, Math.max(target*0.45, sp));
+    f.vx = f.vx/sp*cl; f.vy = f.vy/sp*cl;
+    f.x += f.vx; f.y += f.vy;
+    f.x = Math.max(-40, Math.min(w+40, f.x));
+    f.y = Math.max(-40, Math.min(h+40, f.y));
+  }
+  if(d6cfg.link){
+    ctx.strokeStyle = 'rgba(124,242,255,.10)'; ctx.lineWidth = 1;
+    for(let i = 0; i < N; i++) for(let j = i+1; j < N; j++){
+      const a = F[i], b = F[j];
+      const d = Math.hypot(a.x-b.x, a.y-b.y);
+      if(d < NEI*0.8){ ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke(); }
+    }
+  }
+  for(const f of F) d6Fish(ctx, f, L, t, col, rain);
+  if(D6.m.in){
+    ctx.strokeStyle = D6.m.down ? 'rgba(255,196,110,.55)' : 'rgba(255,255,255,.20)';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(D6.m.x, D6.m.y, 16 + Math.sin(t*6)*3, 0, Math.PI*2); ctx.stroke();
+  }
+  D6.raf = requestAnimationFrame(d6Draw);
+}
+onSlide('#c6', {
+  enter(){ d6Seed(); if(D6.run) return; D6.run = true; d6Draw(); },
+  leave(){ D6.run = false; cancelAnimationFrame(D6.raf); }
+});
+
+/* ============================================================
+   DEMO 07 — FOGGY MIRROR
+   กระจกฝ้า: ฝ้าเป็น canvas ทับภาพกล้อง ลบด้วยเมาส์ หรือด้วยการโบกมือ
+   (ตรวจการเคลื่อนไหวจากผลต่างเฟรม) แล้วฝ้าจะค่อย ๆ กลับมาเอง
+   ============================================================ */
+const D7 = { c:null, ctx:null, run:false, raf:0, fog:null, fctx:null, fw:0, fh:0,
+             m:{x:0,y:0,in:false,down:false,px:0,py:0}, drips:[] };
+const d7cfg = cfg('h7', [
+  camButton('v7','s7',
+    () => { d7cfg.mode = 'cam'; say('s7','โบกมือหน้ากล้องเพื่อเช็ดฝ้า — ถ้าไม่ติด ลองเพิ่ม “ความไว”'); },
+    () => { d7cfg.mode = 'mouse'; }),
+  { k:'mode', t:'เช็ดด้วย', type:'pick', v:'mouse', opts:[['mouse','เมาส์'],['cam','มือจากกล้อง']] },
+  { k:'brush',t:'ขนาดฝ่ามือ', type:'range', v:90, min:20, max:300, unit:'px' },
+  { k:'dens', t:'ความหนาฝ้า', type:'range', v:88, min:20, max:100, unit:'%' },
+  { k:'back', t:'ฝ้ากลับมา', type:'range', v:22, min:0, max:200, fmt:x => (x/10000).toFixed(4) },
+  { k:'sens', t:'ความไว',   type:'range', v:26, min:5, max:90 },
+  { k:'soft', t:'ขอบฟุ้ง',  type:'range', v:55, min:0, max:100, unit:'%' },
+  { k:'drip', t:'หยดน้ำ',   type:'toggle', v:true },
+  { t:'ล้างฝ้าหมด', type:'btn', fn:() => d7Clear() },
+  { t:'เติมฝ้าใหม่', type:'btn', fn:() => d7Fill() }
+]);
+function d7Setup(){
+  const c = D7.c || (D7.c = document.getElementById('c7'));
+  const w = Math.round(c.clientWidth), h = Math.round(c.clientHeight);
+  if(!w || !h) return false;
+  if(!D7.fog){ D7.fog = document.createElement('canvas'); }
+  if(D7.fw !== w || D7.fh !== h){
+    D7.fog.width = w; D7.fog.height = h; D7.fw = w; D7.fh = h;
+    D7.fctx = D7.fog.getContext('2d');
+    d7Fill();
+  }
+  return true;
+}
+function d7Fill(){
+  if(!D7.fctx) return;
+  D7.fctx.globalCompositeOperation = 'source-over';
+  D7.fctx.fillStyle = 'rgb(228,238,250)';
+  D7.fctx.fillRect(0,0,D7.fw,D7.fh);
+}
+function d7Clear(){
+  if(!D7.fctx) return;
+  D7.fctx.clearRect(0,0,D7.fw,D7.fh);
+}
+function d7Wipe(x, y, r){
+  const ctx = D7.fctx; if(!ctx) return;
+  ctx.globalCompositeOperation = 'destination-out';
+  const soft = d7cfg.soft/100;
+  const g = ctx.createRadialGradient(x, y, r*(1-soft)*0.85, x, y, r);
+  g.addColorStop(0, 'rgba(0,0,0,1)');
+  g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.fill();
+  ctx.globalCompositeOperation = 'source-over';
+}
+(function d7Bind(){
+  const c = document.getElementById('c7'); if(!c) return;
+  D7.c = c;
+  c.addEventListener('pointermove', e => {
+    const p = localPt(c,e);
+    D7.m.px = D7.m.in ? D7.m.x : p.x; D7.m.py = D7.m.in ? D7.m.y : p.y;
+    D7.m.x = p.x; D7.m.y = p.y; D7.m.in = true;
+  });
+  c.addEventListener('pointerleave', () => { D7.m.in = false; D7.m.down = false; });
+  c.addEventListener('pointerdown', e => { D7.m.down = true; c.setPointerCapture && c.setPointerCapture(e.pointerId); });
+  c.addEventListener('pointerup',   () => D7.m.down = false);
+})();
+function d7Draw(){
+  if(!D7.run) return;
+  const c = D7.c, cx = sizeCanvas(c); if(cx) D7.ctx = cx;
+  const ctx = D7.ctx, w = c.clientWidth, h = c.clientHeight;
+  if(!ctx || !w || !h || !d7Setup()){ D7.raf = requestAnimationFrame(d7Draw); return; }
+
+  /* ฝ้ากลับมาทีละนิด */
+  const back = d7cfg.back/10000;
+  if(back > 0){
+    D7.fctx.globalCompositeOperation = 'source-over';
+    D7.fctx.fillStyle = `rgba(228,238,250,${back})`;
+    D7.fctx.fillRect(0,0,D7.fw,D7.fh);
+  }
+
+  /* เช็ด */
+  const R = d7cfg.brush;
+  let wiped = 0;
+  if(d7cfg.mode === 'cam' && CAM.on){
+    motUpdate(document.getElementById('v7'));
+    const thr = d7cfg.sens;
+    for(let j = 0; j < MOT.h; j++) for(let i = 0; i < MOT.w; i++){
+      const v = MOT.data[j*MOT.w+i];
+      if(v < thr) continue;
+      const x = (i+.5)*w/MOT.w, y = (j+.5)*h/MOT.h;
+      const k = Math.min(1, (v-thr)/40);
+      d7Wipe(x, y, R*(0.45 + k*0.75)); wiped++;
+    }
+  } else if(D7.m.in){
+    const steps = Math.max(1, Math.round(Math.hypot(D7.m.x-D7.m.px, D7.m.y-D7.m.py)/(R*0.3)));
+    for(let s = 0; s <= steps; s++){
+      const u = steps ? s/steps : 1;
+      d7Wipe(D7.m.px + (D7.m.x-D7.m.px)*u, D7.m.py + (D7.m.y-D7.m.py)*u, R*(D7.m.down ? 1.25 : 1));
+    }
+    D7.m.px = D7.m.x; D7.m.py = D7.m.y;
+    wiped = 1;
+  }
+
+  /* หยดน้ำไหลลง ลากเป็นทางใส */
+  if(d7cfg.drip){
+    if(Math.random() < 0.035 && D7.drips.length < 26)
+      D7.drips.push({ x:Math.random()*w, y:-10, v:0.6 + Math.random()*1.6, r:2 + Math.random()*4 });
+    D7.drips = D7.drips.filter(d => {
+      d.y += d.v; d.v = Math.min(d.v + 0.02, 4.2);
+      d7Wipe(d.x, d.y, d.r*2.1);
+      return d.y < h + 20;
+    });
+  }
+
+  /* วาดฝ้าลงจอจริง (โปร่งใสตาม "ความหนาฝ้า") */
+  ctx.clearRect(0,0,w,h);
+  ctx.globalAlpha = d7cfg.dens/100;
+  ctx.drawImage(D7.fog, 0, 0, w, h);
+  ctx.globalAlpha = 1;
+
+  if(!CAM.on){                                   /* ไม่มีกล้อง: ทำพื้นหลังปลอมให้เห็นว่าเช็ดแล้วเจออะไร */
+    ctx.globalCompositeOperation = 'destination-over';
+    const g = ctx.createLinearGradient(0,0,w,h);
+    g.addColorStop(0,'#12224a'); g.addColorStop(.5,'#2a1246'); g.addColorStop(1,'#06232e');
+    ctx.fillStyle = g; ctx.fillRect(0,0,w,h);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = 'rgba(52,74,124,.55)';       /* ข้อความอยู่เหนือฝ้า จะได้อ่านออก */
+    ctx.font = '700 40px Anuphan, system-ui, sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('ลากเมาส์เช็ดฝ้าได้เลย · เปิดกล้องเพื่อเห็นหน้าตัวเอง', w/2, h/2);
+    ctx.textAlign = 'left';
+  }
+  if(d7cfg.mode === 'mouse' && D7.m.in){
+    ctx.strokeStyle = 'rgba(255,255,255,.30)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(D7.m.x, D7.m.y, R, 0, Math.PI*2); ctx.stroke();
+  }
+  D7.raf = requestAnimationFrame(d7Draw);
+}
+onSlide('#c7', {
+  enter(){ D7.c = document.getElementById('c7'); D7.fw = 0; d7Setup();
+           if(D7.run) return; D7.run = true; d7Draw(); },
+  leave(){ D7.run = false; cancelAnimationFrame(D7.raf);
+           if(CAM.on){ camStop(); const b = d7cfg.$.cam; if(b){ b.textContent = 'เปิดกล้อง'; b.classList.remove('live'); } } }
+});
+
+/* ============================================================
+   DEMO 08 — PIN ART WALL
+   ผนังเข็มพินอาร์ต: เข็มแต่ละอันยื่นออกมาตามร่างกายที่กล้องเห็น
+   (ไม่มีกล้องก็ให้เข็มยื่นตามเมาส์)
+   ============================================================ */
+const D8 = { c:null, ctx:null, run:false, raf:0, hgt:null, cols:0, rows:0, m:{x:0,y:0,in:false} };
+const d8cfg = cfg('h8', [
+  camButton('v8','s8',
+    async () => {
+      say('s8','กำลังโหลดโมเดลแยกร่างคน…');
+      try{ await silLoadSeg(); say('s8','พร้อมแล้ว — <b>ยืนหน้ากล้องแล้วขยับแขน</b>'); }
+      catch(_){ say('s8','โหลดโมเดลไม่ได้ (ออฟไลน์) — เดินออกจากเฟรมแล้วกด <b>จับพื้นหลัง</b>'); }
+      d8cfg.src = 'cam'; syncPick('h8','src','cam');
+    },
+    () => silReset()),
+  { t:'จับพื้นหลัง', type:'btn', fn:() => {
+      const ok = silGrabBG(document.getElementById('v8'));
+      say('s8', ok ? 'จับพื้นหลังแล้ว — เดินเข้าเฟรมได้เลย' : 'ยังไม่มีภาพจากกล้อง กดเปิดกล้องก่อน'); } },
+  { k:'src',   t:'ต้นทาง',   type:'pick', v:'mouse', opts:[['cam','กล้อง'],['mouse','เมาส์']] },
+  { k:'cols',  t:'ความละเอียด', type:'range', v:96, min:24, max:200, unit:' คอลัมน์' },
+  { k:'depth', t:'ความสูงเข็ม', type:'range', v:46, min:5, max:160, unit:'px' },
+  { k:'style', t:'สไตล์',    type:'pick', v:'pin', opts:[['pin','เข็ม'],['dot','จุด'],['bar','แท่ง']] },
+  { k:'ang',   t:'มุมแสง',   type:'range', v:315, min:0, max:359, unit:'°' },
+  { k:'col',   t:'สี',       type:'color', v:'#c7ff4b' },
+  { k:'ease',  t:'ความหน่วง', type:'range', v:24, min:2, max:100, unit:'%' },
+  { k:'op',    t:'ภาพกล้อง', type:'range', v:0, min:0, max:100, unit:'%' }
+], (k,v) => {
+  if(k === 'cols') D8.hgt = null;
+  if(k === 'op'){ const el = document.getElementById('v8'); if(el) el.style.opacity = v/100; }
+});
+function d8Grid(w, h){
+  const cols = d8cfg.cols, rows = Math.max(6, Math.round(cols*h/w));
+  if(!D8.hgt || D8.cols !== cols || D8.rows !== rows){
+    D8.cols = cols; D8.rows = rows;
+    D8.hgt = new Float32Array(cols*rows);
+  }
+  return [cols, rows];
+}
+(function d8Bind(){
+  const c = document.getElementById('c8'); if(!c) return;
+  D8.c = c;
+  c.addEventListener('pointermove', e => { const p = localPt(c,e); D8.m.x = p.x; D8.m.y = p.y; D8.m.in = true; });
+  c.addEventListener('pointerleave', () => D8.m.in = false);
+})();
+function d8Draw(){
+  if(!D8.run) return;
+  const c = D8.c, cx = sizeCanvas(c); if(cx) D8.ctx = cx;
+  const ctx = D8.ctx, w = c.clientWidth, h = c.clientHeight;
+  if(!ctx || !w || !h){ D8.raf = requestAnimationFrame(d8Draw); return; }
+  const useCam = d8cfg.src === 'cam' && CAM.on;
+  if(useCam) silUpdate(document.getElementById('v8'));
+  const [cols, rows] = d8Grid(w, h);
+  const cw = w/cols, ch = h/rows, ease = d8cfg.ease/100;
+  const MR = Math.min(w,h)*0.22;
+  const target = (i, j) => {
+    if(useCam) return silAt((i+.5)/cols, (j+.5)/rows);
+    if(!D8.m.in) return 0;
+    const d = Math.hypot((i+.5)*cw - D8.m.x, (j+.5)*ch - D8.m.y);
+    return Math.max(0, Math.min(1, 1 - d/MR));
+  };
+  const a = d8cfg.ang*Math.PI/180, ox = Math.cos(a), oy = Math.sin(a);
+  const D = d8cfg.depth, [cr,cg,cb] = hex2rgb(d8cfg.col);
+  const style = d8cfg.style;
+
+  ctx.clearRect(0,0,w,h);
+  const bg = ctx.createLinearGradient(0,0,0,h);
+  bg.addColorStop(0,'rgba(8,11,29,.92)'); bg.addColorStop(1,'rgba(4,6,16,.96)');
+  ctx.fillStyle = bg; ctx.fillRect(0,0,w,h);
+
+  const rad = Math.max(0.8, Math.min(cw, ch)*0.30);
+  ctx.lineCap = 'round';
+  for(let j = 0; j < rows; j++){
+    for(let i = 0; i < cols; i++){
+      const k = j*cols + i;
+      const tv = target(i, j);
+      D8.hgt[k] += (tv - D8.hgt[k]) * ease;
+      const v = D8.hgt[k];
+      const x = (i+.5)*cw, y = (j+.5)*ch;
+      if(v < 0.02){
+        ctx.fillStyle = 'rgba(200,215,255,.20)';
+        ctx.beginPath(); ctx.arc(x, y, rad*0.62, 0, Math.PI*2); ctx.fill();
+        continue;
+      }
+      const len = v*D;
+      if(style === 'dot'){
+        ctx.fillStyle = `rgba(${cr},${cg},${cb},${0.25 + v*0.75})`;
+        ctx.beginPath(); ctx.arc(x, y, rad*(0.5 + v*1.6), 0, Math.PI*2); ctx.fill();
+      } else if(style === 'bar'){
+        ctx.fillStyle = `rgba(${cr},${cg},${cb},${0.2 + v*0.8})`;
+        ctx.fillRect(x - rad*0.75, y - len/2, rad*1.5, len);
+      } else {
+        const tx = x + ox*len, ty = y + oy*len;
+        ctx.strokeStyle = `rgba(${Math.round(cr*.45)},${Math.round(cg*.45)},${Math.round(cb*.45)},.85)`;
+        ctx.lineWidth = rad*1.15;
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(tx, ty); ctx.stroke();
+        ctx.fillStyle = `rgba(${Math.min(255,cr+50)},${Math.min(255,cg+50)},${Math.min(255,cb+50)},${0.45 + v*0.55})`;
+        ctx.beginPath(); ctx.arc(tx, ty, rad*(0.62 + v*0.35), 0, Math.PI*2); ctx.fill();
+      }
+    }
+  }
+  D8.raf = requestAnimationFrame(d8Draw);
+}
+onSlide('#c8', {
+  enter(){ D8.c = document.getElementById('c8'); D8.hgt = null;
+           const v = document.getElementById('v8'); if(v) v.style.opacity = d8cfg.op/100;
+           if(D8.run) return; D8.run = true; d8Draw(); },
+  leave(){ D8.run = false; cancelAnimationFrame(D8.raf);
+           if(CAM.on){ camStop(); const b = d8cfg.$.cam; if(b){ b.textContent = 'เปิดกล้อง'; b.classList.remove('live'); } } }
+});
+
+/* ============================================================
+   DEMO 09 — RIPPLE POOL
+   สมการคลื่นบนตาราง height-field แล้ว render โดยหักเหภาพพื้นตามความชัน
+   ============================================================ */
+const D9 = { c:null, ctx:null, run:false, raf:0,
+             W:0, H:0, cur:null, prv:null, base:null, img:null, small:null, sctx:null,
+             m:{x:0,y:0,in:false,down:false,px:0,py:0}, t:0 };
+const d9cfg = cfg('h9', [
+  { k:'res',   t:'ความละเอียด', type:'range', v:300, min:80, max:520, unit:' คอลัมน์' },
+  { k:'damp',  t:'ความหน่วง', type:'range', v:985, min:900, max:999, fmt:x => (x/1000).toFixed(3) },
+  { k:'power', t:'ความแรง',  type:'range', v:60, min:4, max:200 },
+  { k:'size',  t:'ขนาดหยด',  type:'range', v:4, min:1, max:16, unit:' เซลล์' },
+  { k:'refr',  t:'การหักเห', type:'range', v:45, min:4, max:150, unit:'%' },
+  { k:'auto',  t:'หยดอัตโนมัติ', type:'toggle', v:true },
+  { k:'rate',  t:'ถี่',      type:'range', v:26, min:1, max:80, fmt:x => (x/20).toFixed(1)+'/s' },
+  { k:'col',   t:'สีน้ำ',    type:'color', v:'#1b6fa8' },
+  { k:'grid',  t:'ลายพื้น',  type:'pick', v:'grid', opts:[['grid','ตาราง'],['tile','กระเบื้อง'],['glow','ไล่สี']] },
+  { t:'ล้างผิวน้ำ', type:'btn', fn:() => { D9.cur && D9.cur.fill(0); D9.prv && D9.prv.fill(0); } }
+], k => { if(k === 'res' || k === 'col' || k === 'grid') D9.W = 0; });
+
+function d9Init(w, h){
+  const W = d9cfg.res, H = Math.max(40, Math.round(W*h/w));
+  if(D9.W === W && D9.H === H) return;
+  D9.W = W; D9.H = H;
+  D9.cur = new Float32Array(W*H);
+  D9.prv = new Float32Array(W*H);
+  if(!D9.small){ D9.small = document.createElement('canvas'); }
+  D9.small.width = W; D9.small.height = H;
+  D9.sctx = D9.small.getContext('2d');
+  D9.img = D9.sctx.createImageData(W, H);
+  /* พื้นสระ: ทำครั้งเดียว แล้วใช้เป็นภาพต้นทางให้คลื่นหักเห */
+  const base = new Uint8ClampedArray(W*H*4);
+  const [br,bg,bb] = hex2rgb(d9cfg.col);
+  const style = d9cfg.grid;
+  for(let y = 0; y < H; y++) for(let x = 0; x < W; x++){
+    const i = (y*W+x)*4;
+    const u = x/W, v = y/H;
+    let r = br*(0.55 + 0.5*(1-v)), g = bg*(0.55 + 0.5*(1-v)), b = bb*(0.6 + 0.55*(1-v));
+    if(style === 'grid'){
+      const gx = (x % Math.max(6, W/16|0)) < 1.5, gy = (y % Math.max(6, W/16|0)) < 1.5;
+      if(gx || gy){ r += 60; g += 80; b += 70; }
+    } else if(style === 'tile'){
+      const t = Math.max(8, (W/12)|0);
+      const cb2 = ((x/t|0) + (y/t|0)) % 2;
+      const k = cb2 ? 1.22 : 0.86;
+      r *= k; g *= k; b *= k;
+      if((x % t) < 1 || (y % t) < 1){ r += 40; g += 55; b += 55; }
+    } else {
+      const k = 0.7 + 0.6*Math.sin(u*4 + v*3);
+      r *= k; g *= k*1.05; b *= 1.1;
+    }
+    base[i] = Math.min(255,r); base[i+1] = Math.min(255,g); base[i+2] = Math.min(255,b); base[i+3] = 255;
+  }
+  D9.base = base;
+}
+function d9Drop(px, py, w, h, power){
+  const W = D9.W, H = D9.H;
+  if(!W || !D9.prv) return;
+  const cx = Math.round(px/w*W), cy = Math.round(py/h*H);
+  const R = d9cfg.size;
+  for(let y = -R; y <= R; y++) for(let x = -R; x <= R; x++){
+    const d = Math.hypot(x,y); if(d > R) continue;
+    const gx = cx+x, gy = cy+y;
+    if(gx < 1 || gy < 1 || gx >= W-1 || gy >= H-1) continue;
+    D9.prv[gy*W+gx] -= (power ?? d9cfg.power) * (1 - d/R);
+  }
+}
+(function d9Bind(){
+  const c = document.getElementById('c9'); if(!c) return;
+  D9.c = c;
+  c.addEventListener('pointermove', e => {
+    const p = localPt(c,e);
+    if(D9.m.in && D9.W){
+      const w = c.clientWidth, h = c.clientHeight;
+      const steps = Math.max(1, Math.round(Math.hypot(p.x-D9.m.x, p.y-D9.m.y)/8));
+      for(let s = 1; s <= steps; s++){
+        const u = s/steps;
+        d9Drop(D9.m.x + (p.x-D9.m.x)*u, D9.m.y + (p.y-D9.m.y)*u, w, h, d9cfg.power*0.20);
+      }
+    }
+    D9.m.x = p.x; D9.m.y = p.y; D9.m.in = true;
+  });
+  c.addEventListener('pointerleave', () => D9.m.in = false);
+  c.addEventListener('pointerdown', e => {
+    const p = localPt(c,e);
+    d9Drop(p.x, p.y, c.clientWidth, c.clientHeight, d9cfg.power*1.7);
+  });
+})();
+function d9Draw(){
+  if(!D9.run) return;
+  const c = D9.c, cx = sizeCanvas(c); if(cx) D9.ctx = cx;
+  const ctx = D9.ctx, w = c.clientWidth, h = c.clientHeight;
+  if(!ctx || !w || !h){ D9.raf = requestAnimationFrame(d9Draw); return; }
+  d9Init(w, h);
+  const W = D9.W, H = D9.H, cur = D9.cur, prv = D9.prv, damp = d9cfg.damp/1000;
+
+  D9.t += 1/60;
+  if(d9cfg.auto && Math.random() < d9cfg.rate/1200)
+    d9Drop(Math.random()*w, Math.random()*h, w, h, d9cfg.power*(0.5+Math.random()*0.9));
+
+  for(let y = 1; y < H-1; y++){
+    const o = y*W;
+    for(let x = 1; x < W-1; x++){
+      const i = o+x;
+      cur[i] = ((prv[i-1] + prv[i+1] + prv[i-W] + prv[i+W]) * 0.5 - cur[i]) * damp;
+    }
+  }
+  const tmp = D9.cur; D9.cur = D9.prv; D9.prv = tmp;
+
+  const out = D9.img.data, base = D9.base, K = d9cfg.refr/100;
+  const P = D9.prv;
+  for(let y = 1; y < H-1; y++){
+    const o = y*W;
+    for(let x = 1; x < W-1; x++){
+      const i = o+x, p = i*4;
+      const dx = P[i-1] - P[i+1], dy = P[i-W] - P[i+W];
+      let sx = x + ((dx*K)|0), sy = y + ((dy*K)|0);
+      sx = sx < 0 ? 0 : sx >= W ? W-1 : sx;
+      sy = sy < 0 ? 0 : sy >= H ? H-1 : sy;
+      const s = (sy*W + sx)*4;
+      const lit = 128 + (dx + dy)*K*7;
+      const l = lit < 0 ? 0 : lit > 255 ? 255 : lit;
+      const k = l/128;
+      out[p]   = Math.min(255, base[s]*k);
+      out[p+1] = Math.min(255, base[s+1]*k);
+      out[p+2] = Math.min(255, base[s+2]*k);
+      out[p+3] = 255;
+    }
+  }
+  D9.sctx.putImageData(D9.img, 0, 0);
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(D9.small, 0, 0, w, h);
+  if(D9.m.in){
+    ctx.strokeStyle = 'rgba(255,255,255,.22)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(D9.m.x, D9.m.y, 14, 0, Math.PI*2); ctx.stroke();
+  }
+  D9.raf = requestAnimationFrame(d9Draw);
+}
+onSlide('#c9', {
+  enter(){ D9.c = document.getElementById('c9'); D9.W = 0;
+           if(D9.run) return; D9.run = true; d9Draw(); },
+  leave(){ D9.run = false; cancelAnimationFrame(D9.raf); }
+});
+
+/* ============================================================
+   DEMO 10 — AURORA FLOW FIELD
+   อนุภาคนับพันไหลไปตาม "สนามทิศทาง" ที่สร้างจาก value noise
+   (แนวคิดเดียวกับ Noise TOP -> Feedback ใน TouchDesigner)
+   ============================================================ */
+const D10 = { c:null, ctx:null, run:false, raf:0, p:[], t:0, fresh:true,
+              m:{x:0,y:0,in:false,down:false} };
+/* ---- value noise เล็ก ๆ พอสำหรับสนามทิศทาง ---- */
+function nHash(i, j){
+  let n = (i*1619 + j*31337) | 0;
+  n = (n << 13) ^ n;
+  return 1 - ((n*(n*n*15731 + 789221) + 1376312589) & 0x7fffffff) / 1073741824;
+}
+function vnoise(x, y){
+  const i = Math.floor(x), j = Math.floor(y);
+  let fx = x - i, fy = y - j;
+  fx = fx*fx*(3-2*fx); fy = fy*fy*(3-2*fy);
+  const a = nHash(i,j), b = nHash(i+1,j), c = nHash(i,j+1), d = nHash(i+1,j+1);
+  const ab = a + (b-a)*fx, cd = c + (d-c)*fx;
+  return ab + (cd-ab)*fy;                         /* -1..1 */
+}
+const d10cfg = cfg('h10', [
+  { k:'n',     t:'จำนวน',    type:'num',   v:1600, min:100, max:12000, step:100 },
+  { k:'sp',    t:'ความเร็ว', type:'range', v:30, min:2, max:90, fmt:x => (x/10).toFixed(1) },
+  { k:'scale', t:'สเกลสนาม', type:'range', v:26, min:2, max:90, fmt:x => (x/10).toFixed(1) },
+  { k:'turns', t:'ความปั่นป่วน', type:'range', v:42, min:5, max:80, fmt:x => (x/10).toFixed(1)+'×' },
+  { k:'evo',   t:'สนามหมุน', type:'range', v:12, min:0, max:80, fmt:x => (x/100).toFixed(2) },
+  { k:'trail', t:'หางเฟด',  type:'range', v:7, min:1, max:60, unit:'%' },
+  { k:'wid',   t:'ความหนา', type:'range', v:17, min:2, max:70, fmt:x => (x/10).toFixed(1)+'px' },
+  { k:'mm',    t:'เมาส์',    type:'pick',  v:'swirl',
+    opts:[['swirl','หมุนวน'],['push','ผลัก'],['pull','ดูด'],['off','ปิด']] },
+  { k:'mr',    t:'รัศมี',    type:'range', v:230, min:40, max:700, unit:'px' },
+  { k:'pal',   t:'จานสี',   type:'pick',  v:'aurora',
+    opts:[['aurora','ออโรรา'],['neon','นีออน'],['mono','สีเดียว']] },
+  { k:'col',   t:'',        type:'color', v:'#7CF2FF' },
+  { t:'ล้างจอ', type:'btn', fn:() => { D10.fresh = true; d10Seed(); } }
+], k => { if(k === 'n') d10Seed(); });
+
+function d10Seed(){
+  const c = D10.c || (D10.c = document.getElementById('c10'));
+  const w = c.clientWidth || 1600, h = c.clientHeight || 800;
+  D10.p = Array.from({ length:d10cfg.n }, () => ({
+    x:Math.random()*w, y:Math.random()*h, px:0, py:0,
+    life:20 + Math.random()*260, hue:Math.random() }));
+  D10.p.forEach(p => { p.px = p.x; p.py = p.y; });
+}
+(function d10Bind(){
+  const c = document.getElementById('c10'); if(!c) return;
+  D10.c = c;
+  c.addEventListener('pointermove', e => { const p = localPt(c,e); D10.m.x = p.x; D10.m.y = p.y; D10.m.in = true; });
+  c.addEventListener('pointerleave', () => { D10.m.in = false; D10.m.down = false; });
+  c.addEventListener('pointerdown', () => D10.m.down = true);
+  c.addEventListener('pointerup',   () => D10.m.down = false);
+})();
+function d10Draw(){
+  if(!D10.run) return;
+  const c = D10.c, cx = sizeCanvas(c); if(cx) D10.ctx = cx;
+  const ctx = D10.ctx, w = c.clientWidth, h = c.clientHeight;
+  if(!ctx || !w || !h){ D10.raf = requestAnimationFrame(d10Draw); return; }
+  D10.t += 1/60;
+  if(D10.fresh){ ctx.fillStyle = '#04060f'; ctx.fillRect(0,0,w,h); D10.fresh = false; }
+  ctx.fillStyle = `rgba(4,6,15,${d10cfg.trail/100})`; ctx.fillRect(0,0,w,h);
+
+  const s = d10cfg.scale/10000, turns = d10cfg.turns/10;
+  const t = D10.t * d10cfg.evo/100;
+  const sp = d10cfg.sp/10, MR = d10cfg.mr, mm = d10cfg.mm;
+  const [cr,cg,cb] = hex2rgb(d10cfg.col);
+  const pal = d10cfg.pal;
+
+  ctx.lineCap = 'round';
+  ctx.lineWidth = d10cfg.wid/10;
+  ctx.globalCompositeOperation = 'lighter';
+  for(const p of D10.p){
+    p.px = p.x; p.py = p.y;
+    const nx = p.x*s, ny = p.y*s;
+    const n = vnoise(nx, ny + t*0.6)*0.68 + vnoise(nx*2.1 + 31.7, ny*2.1 - t*0.45)*0.32;
+    const a = n * Math.PI * turns;
+    let vx = Math.cos(a)*sp, vy = Math.sin(a)*sp;
+    if(D10.m.in && mm !== 'off'){
+      const dx = p.x - D10.m.x, dy = p.y - D10.m.y, d = Math.hypot(dx,dy) + .1;
+      if(d < MR){
+        const k = (1 - d/MR) * (D10.m.down ? 2.2 : 1) * sp * 1.4;
+        if(mm === 'swirl'){ vx += -dy/d*k; vy += dx/d*k; }
+        else if(mm === 'push'){ vx += dx/d*k; vy += dy/d*k; }
+        else { vx -= dx/d*k; vy -= dy/d*k; }
+      }
+    }
+    p.x += vx; p.y += vy;
+    p.life -= 1;
+    let warp = false;
+    if(p.x < 0 || p.x > w || p.y < 0 || p.y > h || p.life <= 0){
+      p.x = Math.random()*w; p.y = Math.random()*h;
+      p.life = 20 + Math.random()*260; p.hue = Math.random();
+      p.px = p.x; p.py = p.y; warp = true;
+    }
+    if(warp) continue;
+    const sped = Math.hypot(vx,vy)/(sp*2.6);
+    let col;
+    if(pal === 'aurora')    col = `hsla(${(150 + p.hue*130 + sped*60)|0},92%,${(56+sped*22)|0}%,.75)`;
+    else if(pal === 'neon') col = `hsla(${(300 + p.hue*160 + D10.t*8)%360|0},100%,${(58+sped*20)|0}%,.75)`;
+    else                    col = `rgba(${cr},${cg},${cb},${0.42 + sped*0.45})`;
+    ctx.strokeStyle = col;
+    ctx.beginPath(); ctx.moveTo(p.px, p.py); ctx.lineTo(p.x, p.y); ctx.stroke();
+  }
+  ctx.globalCompositeOperation = 'source-over';
+  if(D10.m.in && mm !== 'off'){
+    ctx.strokeStyle = 'rgba(255,255,255,.14)'; ctx.lineWidth = 1.5;
+    ctx.setLineDash([6,9]);
+    ctx.beginPath(); ctx.arc(D10.m.x, D10.m.y, MR, 0, Math.PI*2); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  D10.raf = requestAnimationFrame(d10Draw);
+}
+onSlide('#c10', {
+  enter(){ D10.fresh = true; d10Seed(); if(D10.run) return; D10.run = true; d10Draw(); },
+  leave(){ D10.run = false; cancelAnimationFrame(D10.raf); }
+});
+
+/* ============================================================
+   DEMO 11 — MAGNETIC SAND
+   ผงเหล็กบนกระดาษ: แต่ละเม็ดหันตามทิศของสนามรวมจากทุกขั้ว
+   เมาส์คือแม่เหล็กที่ถืออยู่ · คลิกเพื่อวางขั้วถาวร
+   ============================================================ */
+const D11 = { c:null, ctx:null, run:false, raf:0, poles:[], dust:[],
+              m:{x:0,y:0,in:false}, t:0, cols:0, rows:0, cells:null };
+const d11cfg = cfg('h11', [
+  { k:'dens',  t:'ความหนาแน่น', type:'range', v:104, min:30, max:220, unit:' คอลัมน์' },
+  { k:'len',   t:'ความยาวเม็ด', type:'range', v:20, min:5, max:70, unit:'px' },
+  { k:'pw',    t:'ความแรง',   type:'range', v:70, min:10, max:220, unit:'%' },
+  { k:'hold',  t:'ขั้วที่ถือ', type:'pick', v:'n', opts:[['n','ขั้วเหนือ (N)'],['s','ขั้วใต้ (S)']] },
+  { k:'dust',  t:'ผงลอยตามสนาม', type:'toggle', v:true },
+  { k:'nd',    t:'จำนวนผง',   type:'num',  v:900, min:0, max:6000, step:100 },
+  { k:'col',   t:'สีผง',      type:'color', v:'#cfe3ff' },
+  { k:'glow',  t:'เรืองแสงตามความแรง', type:'toggle', v:true },
+  { t:'ล้างขั้วทั้งหมด', type:'btn', fn:() => { D11.poles.length = 0; } },
+  { t:'ตัวอย่างแม่เหล็กแท่ง', type:'btn', fn:() => d11Bar() }
+], k => { if(k === 'dens') D11.cells = null; if(k === 'nd') d11Dust(); });
+
+function d11Bar(){
+  const c = D11.c; if(!c) return;
+  const w = c.clientWidth, h = c.clientHeight;
+  D11.poles = [ { x:w*0.36, y:h*0.52, q: 1 }, { x:w*0.64, y:h*0.52, q:-1 } ];
+}
+function d11Dust(){
+  const c = D11.c || (D11.c = document.getElementById('c11'));
+  const w = c.clientWidth || 1600, h = c.clientHeight || 800;
+  D11.dust = Array.from({ length:d11cfg.nd }, () => ({ x:Math.random()*w, y:Math.random()*h, a:Math.random() }));
+}
+/* สนามลดตาม 1/d² ถ้าเอาค่าดิบไปคูณตรง ๆ จะสว่างเฉพาะติดขั้ว
+   จึงบีบด้วยเส้นโค้งอิ่มตัวก่อน ผงถึงจะเห็นทั่วทั้งจาน */
+function d11K(m){ const t = m/(m + 0.35); return Math.pow(t, 0.6); }
+function d11Field(x, y){
+  let bx = 0, by = 0;
+  const K = d11cfg.pw*260;
+  const add = (px, py, q) => {
+    const dx = x-px, dy = y-py;
+    const d2 = dx*dx + dy*dy + 900;
+    const d = Math.sqrt(d2);
+    const f = q*K/d2;
+    bx += dx/d*f; by += dy/d*f;
+  };
+  for(const p of D11.poles) add(p.x, p.y, p.q);
+  if(D11.m.in) add(D11.m.x, D11.m.y, d11cfg.hold === 'n' ? 1 : -1);
+  return [bx, by];
+}
+(function d11Bind(){
+  const c = document.getElementById('c11'); if(!c) return;
+  D11.c = c;
+  c.addEventListener('pointermove', e => { const p = localPt(c,e); D11.m.x = p.x; D11.m.y = p.y; D11.m.in = true; });
+  c.addEventListener('pointerleave', () => D11.m.in = false);
+  c.addEventListener('pointerdown', e => {
+    const p = localPt(c,e);
+    if(e.button === 2) return;
+    D11.poles.push({ x:p.x, y:p.y, q: d11cfg.hold === 'n' ? 1 : -1 });
+    if(D11.poles.length > 10) D11.poles.shift();
+  });
+  c.addEventListener('contextmenu', e => {
+    e.preventDefault();
+    const p = localPt(c,e);
+    let bi = -1, bd = 1e9;
+    D11.poles.forEach((q,i) => { const d = Math.hypot(q.x-p.x, q.y-p.y); if(d < bd){ bd = d; bi = i; } });
+    if(bi >= 0 && bd < 160) D11.poles.splice(bi,1);
+  });
+})();
+function d11Draw(){
+  if(!D11.run) return;
+  const c = D11.c, cx = sizeCanvas(c); if(cx) D11.ctx = cx;
+  const ctx = D11.ctx, w = c.clientWidth, h = c.clientHeight;
+  if(!ctx || !w || !h){ D11.raf = requestAnimationFrame(d11Draw); return; }
+  D11.t += 1/60;
+  const cols = d11cfg.dens, rows = Math.max(8, Math.round(cols*h/w));
+  const cw = w/cols, ch = h/rows;
+  const L = d11cfg.len/2, [cr,cg,cb] = hex2rgb(d11cfg.col);
+
+  const bg = ctx.createRadialGradient(w/2, h/2, 40, w/2, h/2, Math.hypot(w,h)/2);
+  bg.addColorStop(0,'#0d1230'); bg.addColorStop(1,'#05070f');
+  ctx.fillStyle = bg; ctx.fillRect(0,0,w,h);
+
+  /* ---- ผงเหล็กที่ปักอยู่กับที่ หันตามสนาม ---- */
+  ctx.lineCap = 'round';
+  for(let j = 0; j < rows; j++){
+    for(let i = 0; i < cols; i++){
+      const x = (i+.5)*cw, y = (j+.5)*ch;
+      const [bx, by] = d11Field(x, y);
+      const m = Math.hypot(bx, by);
+      const k = d11K(m);
+      const a = Math.atan2(by, bx);
+      const l = L*(0.35 + k*0.9);
+      const dx = Math.cos(a)*l, dy = Math.sin(a)*l;
+      const al = 0.16 + k*0.80;
+      ctx.strokeStyle = d11cfg.glow
+        ? `rgba(${Math.min(255,cr+k*40)},${Math.min(255,cg+k*20)},${cb},${al})`
+        : `rgba(${cr},${cg},${cb},${al})`;
+      ctx.lineWidth = 1 + k*1.6;
+      ctx.beginPath(); ctx.moveTo(x-dx, y-dy); ctx.lineTo(x+dx, y+dy); ctx.stroke();
+    }
+  }
+  /* ---- ผงลอย ไหลไปตามเส้นสนาม ---- */
+  if(d11cfg.dust){
+    if(D11.dust.length !== d11cfg.nd) d11Dust();
+    ctx.globalCompositeOperation = 'lighter';
+    for(const d of D11.dust){
+      const [bx, by] = d11Field(d.x, d.y);
+      const m = Math.hypot(bx, by) + .001;
+      const sp = 0.5 + d11K(m)*5.5;
+      d.x += bx/m*sp; d.y += by/m*sp;
+      if(d.x < 0 || d.x > w || d.y < 0 || d.y > h || Math.random() < 0.004){
+        d.x = Math.random()*w; d.y = Math.random()*h;
+      }
+      ctx.fillStyle = `rgba(190,225,255,${0.12 + d11K(m)*0.55})`;
+      ctx.beginPath(); ctx.arc(d.x, d.y, 1.3, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.globalCompositeOperation = 'source-over';
+  }
+  /* ---- ตัวขั้วแม่เหล็ก ---- */
+  const drawPole = (x, y, q, held) => {
+    const r = held ? 24 : 20;
+    const g = ctx.createRadialGradient(x, y, 2, x, y, r*1.7);
+    const c1 = q > 0 ? 'rgba(255,79,163,' : 'rgba(57,223,248,';
+    g.addColorStop(0, c1 + '.95)'); g.addColorStop(1, c1 + '0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(x, y, r*1.7, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = q > 0 ? '#ff4fa3' : '#39dff8';
+    ctx.beginPath(); ctx.arc(x, y, r*0.55, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#05070f'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = '700 15px "Space Grotesk", sans-serif';
+    ctx.fillText(q > 0 ? 'N' : 'S', x, y+1);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    if(held){
+      ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 2;
+      ctx.setLineDash([4,6]);
+      ctx.beginPath(); ctx.arc(x, y, r + 12 + Math.sin(D11.t*5)*3, 0, Math.PI*2); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  };
+  D11.poles.forEach(p => drawPole(p.x, p.y, p.q, false));
+  if(D11.m.in) drawPole(D11.m.x, D11.m.y, d11cfg.hold === 'n' ? 1 : -1, true);
+  ctx.fillStyle = 'rgba(255,255,255,.24)';
+  ctx.font = '700 13px "Space Grotesk", sans-serif';
+  ctx.fillText(`${cols}×${rows} FILINGS · ${D11.poles.length} FIXED POLES`, 18, h-18);
+  D11.raf = requestAnimationFrame(d11Draw);
+}
+onSlide('#c11', {
+  enter(){ D11.c = document.getElementById('c11');
+           if(!D11.poles.length) d11Bar();
+           d11Dust();
+           if(D11.run) return; D11.run = true; d11Draw(); },
+  leave(){ D11.run = false; cancelAnimationFrame(D11.raf); }
+});
+
+/* ============================================================
+   DEMO 12 — KALEIDOSCOPE PAINT
+   ลากเส้นเดียว แล้วสะท้อน/หมุนซ้ำรอบจุดกึ่งกลางเป็นลายมันดาลา
+   ภาพเก็บไว้ใน canvas ซ้อน จึงไม่หายตอนสไลด์ปรับขนาด
+   ============================================================ */
+const D12 = { c:null, ctx:null, run:false, raf:0, pad:null, pctx:null, pw:0, ph:0,
+              m:{x:0,y:0,px:0,py:0,in:false,down:false}, t:0, hue:0 };
+const d12cfg = cfg('h12', [
+  { k:'seg',  t:'จำนวนกระจก', type:'range', v:8,  min:2, max:36 },
+  { k:'mir',  t:'สะท้อนซ้าย-ขวา', type:'toggle', v:true },
+  { k:'wid',  t:'ขนาดพู่กัน', type:'range', v:9, min:1, max:60, unit:'px' },
+  { k:'mode', t:'สี',        type:'pick', v:'rainbow', opts:[['rainbow','ไล่สี'],['fixed','สีเดียว']] },
+  { k:'col',  t:'',          type:'color', v:'#ff4fa3' },
+  { k:'spin', t:'ไล่สีเร็ว',  type:'range', v:35, min:0, max:200, fmt:x => (x/100).toFixed(2) },
+  { k:'glow', t:'เรืองแสง',  type:'toggle', v:true },
+  { k:'fade', t:'จางลง',     type:'range', v:0, min:0, max:40, fmt:x => x ? (x/1000).toFixed(3) : 'ไม่จาง' },
+  { k:'rot',  t:'หมุนอัตโนมัติ', type:'range', v:0, min:0, max:60, fmt:x => (x/100).toFixed(2) },
+  { t:'ล้างจอ',   type:'btn', fn:() => d12Clear() },
+  { t:'บันทึก PNG', type:'btn', fn:() => d12Save() }
+]);
+function d12Setup(){
+  const c = D12.c || (D12.c = document.getElementById('c12'));
+  const w = Math.round(c.clientWidth), h = Math.round(c.clientHeight);
+  if(!w || !h) return false;
+  if(!D12.pad) D12.pad = document.createElement('canvas');
+  if(D12.pw !== w || D12.ph !== h){
+    D12.pad.width = w; D12.pad.height = h; D12.pw = w; D12.ph = h;
+    D12.pctx = D12.pad.getContext('2d');
+    d12Clear();
+  }
+  return true;
+}
+function d12Clear(){
+  if(!D12.pctx) return;
+  D12.pctx.globalCompositeOperation = 'source-over';
+  D12.pctx.fillStyle = '#05060f';
+  D12.pctx.fillRect(0,0,D12.pw,D12.ph);
+}
+function d12Save(){
+  if(!D12.pad) return;
+  const a = document.createElement('a');
+  a.download = 'kaleidoscope-' + Date.now() + '.png';
+  a.href = D12.pad.toDataURL('image/png');
+  a.click();
+}
+function d12Stroke(x0, y0, x1, y1){
+  const ctx = D12.pctx; if(!ctx) return;
+  const cx = D12.pw/2, cy = D12.ph/2;
+  const N = d12cfg.seg, step = Math.PI*2/N;
+  const base = D12.t * d12cfg.rot/100;
+  const col = d12cfg.mode === 'fixed'
+    ? d12cfg.col
+    : `hsl(${D12.hue|0},95%,62%)`;
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.strokeStyle = col;
+  ctx.lineWidth = d12cfg.wid;
+  ctx.lineCap = 'round';
+  if(d12cfg.glow){ ctx.shadowBlur = d12cfg.wid*1.6; ctx.shadowColor = col; }
+  else ctx.shadowBlur = 0;
+  const ax = x0-cx, ay = y0-cy, bx = x1-cx, by = y1-cy;
+  for(let k = 0; k < N; k++){
+    const a = base + k*step, ca = Math.cos(a), sa = Math.sin(a);
+    const p0x = ax*ca - ay*sa, p0y = ax*sa + ay*ca;
+    const p1x = bx*ca - by*sa, p1y = bx*sa + by*ca;
+    ctx.beginPath(); ctx.moveTo(cx+p0x, cy+p0y); ctx.lineTo(cx+p1x, cy+p1y); ctx.stroke();
+    if(d12cfg.mir){
+      ctx.beginPath(); ctx.moveTo(cx+p0x, cy-p0y); ctx.lineTo(cx+p1x, cy-p1y); ctx.stroke();
+    }
+  }
+  ctx.shadowBlur = 0;
+  ctx.globalCompositeOperation = 'source-over';
+}
+(function d12Bind(){
+  const c = document.getElementById('c12'); if(!c) return;
+  D12.c = c;
+  c.addEventListener('pointermove', e => {
+    const p = localPt(c,e);
+    D12.m.px = D12.m.in ? D12.m.x : p.x; D12.m.py = D12.m.in ? D12.m.y : p.y;
+    D12.m.x = p.x; D12.m.y = p.y; D12.m.in = true;
+    if(D12.m.down && d12Setup()){
+      D12.hue = (D12.hue + 1.6 + d12cfg.spin/12) % 360;
+      d12Stroke(D12.m.px, D12.m.py, D12.m.x, D12.m.y);
+    }
+  });
+  c.addEventListener('pointerleave', () => { D12.m.in = false; D12.m.down = false; });
+  c.addEventListener('pointerdown', e => {
+    const p = localPt(c,e);
+    D12.m.x = D12.m.px = p.x; D12.m.y = D12.m.py = p.y;
+    D12.m.in = true; D12.m.down = true;
+    c.setPointerCapture && c.setPointerCapture(e.pointerId);
+  });
+  c.addEventListener('pointerup',     () => D12.m.down = false);
+  c.addEventListener('pointercancel', () => D12.m.down = false);
+})();
+function d12Draw(){
+  if(!D12.run) return;
+  const c = D12.c, cx2 = sizeCanvas(c); if(cx2) D12.ctx = cx2;
+  const ctx = D12.ctx, w = c.clientWidth, h = c.clientHeight;
+  if(!ctx || !w || !h || !d12Setup()){ D12.raf = requestAnimationFrame(d12Draw); return; }
+  D12.t += 1/60;
+  if(d12cfg.fade > 0){
+    D12.pctx.globalCompositeOperation = 'source-over';
+    D12.pctx.fillStyle = `rgba(5,6,15,${d12cfg.fade/1000})`;
+    D12.pctx.fillRect(0,0,D12.pw,D12.ph);
+  }
+  ctx.clearRect(0,0,w,h);
+  ctx.drawImage(D12.pad, 0, 0, w, h);
+  /* เส้นนำสายตาให้เห็นว่ากระจกอยู่ตรงไหน */
+  const N = d12cfg.seg, cx = w/2, cy = h/2, R = Math.hypot(w,h)/2;
+  ctx.strokeStyle = 'rgba(255,255,255,.055)'; ctx.lineWidth = 1;
+  for(let k = 0; k < N; k++){
+    const a = D12.t*d12cfg.rot/100 + k*Math.PI*2/N;
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(a)*R, cy + Math.sin(a)*R); ctx.stroke();
+  }
+  if(D12.m.in){
+    ctx.strokeStyle = D12.m.down ? 'rgba(255,255,255,.55)' : 'rgba(255,255,255,.22)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(D12.m.x, D12.m.y, d12cfg.wid*0.6 + 6, 0, Math.PI*2); ctx.stroke();
+  }
+  ctx.fillStyle = 'rgba(255,255,255,.24)';
+  ctx.font = '700 13px "Space Grotesk", sans-serif';
+  ctx.fillText(`${N} MIRRORS${d12cfg.mir ? ' × 2' : ''}`, 18, h-18);
+  D12.raf = requestAnimationFrame(d12Draw);
+}
+onSlide('#c12', {
+  enter(){ D12.c = document.getElementById('c12'); d12Setup();
+           if(D12.run) return; D12.run = true; d12Draw(); },
+  leave(){ D12.run = false; cancelAnimationFrame(D12.raf); D12.m.down = false; }
+});
+
+/* ============================================================
+   DEMO 13 — CLOTH & ROPE  (verlet integration)
+   จุดจำ "ตำแหน่งเฟรมก่อน" แทนความเร็ว แล้วดึงระยะระหว่างจุดให้คงที่ซ้ำ ๆ
+   เป็นวิธีเดียวกับที่ใช้ทำผ้า/เชือกในงาน installation จริง
+   ============================================================ */
+const D13 = { c:null, ctx:null, run:false, raf:0, pts:[], sticks:[], cols:0, rows:0, restX:1,
+              grab:null, m:{x:0,y:0,px:0,py:0,in:false,down:false,shift:false} };
+const d13cfg = cfg('h13', [
+  { k:'mode', t:'รูปแบบ',  type:'pick', v:'cloth', opts:[['cloth','ผ้า'],['rope','เชือก']] },
+  { k:'cols', t:'คอลัมน์', type:'range', v:36, min:6, max:70 },
+  { k:'rows', t:'แถว',     type:'range', v:22, min:4, max:44 },
+  { k:'g',    t:'แรงโน้มถ่วง', type:'range', v:55, min:0, max:200, fmt:x => (x/100).toFixed(2) },
+  { k:'wind', t:'ลม',      type:'range', v:0, min:-80, max:80, fmt:x => (x/100).toFixed(2) },
+  { k:'damp', t:'ความหน่วง', type:'range', v:99, min:90, max:100, unit:'%' },
+  { k:'iter', t:'ความแข็ง', type:'range', v:4, min:1, max:10, unit:' รอบ' },
+  { k:'draw', t:'วาดเป็น',  type:'pick', v:'fill', opts:[['fill','ผืนผ้า'],['mesh','ตาข่าย'],['dots','จุด']] },
+  { k:'col',  t:'สี',      type:'color', v:'#8b6cff' },
+  { k:'cut',  t:'Shift = กรรไกร', type:'toggle', v:true },
+  { t:'รีเซ็ต', type:'btn', fn:() => d13Build() }
+], k => { if(['mode','cols','rows'].includes(k)) d13Build(); });
+
+function d13Build(){
+  const c = D13.c || (D13.c = document.getElementById('c13'));
+  const w = c.clientWidth || 1600, h = c.clientHeight || 800;
+  const rope = d13cfg.mode === 'rope';
+  const cols = rope ? Math.max(4, Math.round(d13cfg.cols/4)) : d13cfg.cols;
+  const rows = rope ? Math.max(10, d13cfg.rows + 10) : d13cfg.rows;
+  D13.cols = cols; D13.rows = rows;
+  const mW = w*0.70, mH = h*0.60;
+  const sx = (w-mW)/2, sy = h*0.20;   /* เริ่มใต้แผง CONFIG */
+  const dx = cols > 1 ? mW/(cols-1) : 0, dy = rows > 1 ? mH/(rows-1) : 0;
+  const pts = [], sticks = [];
+  for(let j = 0; j < rows; j++) for(let i = 0; i < cols; i++){
+    const x = sx + i*dx, y = sy + j*dy;
+    pts.push({ x, y, px:x, py:y, pin: j === 0 && (rope || i % 4 === 0 || i === cols-1) });
+  }
+  const link = (a, b) => {
+    const A = pts[a], B = pts[b];
+    sticks.push({ a, b, len:Math.hypot(A.x-B.x, A.y-B.y) });
+  };
+  for(let j = 0; j < rows; j++) for(let i = 0; i < cols; i++){
+    const k = j*cols + i;
+    if(i < cols-1 && !rope) link(k, k+1);
+    if(j < rows-1) link(k, k+cols);
+  }
+  D13.pts = pts; D13.sticks = sticks; D13.grab = null; D13.restX = dx || 1;
+}
+(function d13Bind(){
+  const c = document.getElementById('c13'); if(!c) return;
+  D13.c = c;
+  const upd = e => {
+    const p = localPt(c,e);
+    D13.m.px = D13.m.in ? D13.m.x : p.x; D13.m.py = D13.m.in ? D13.m.y : p.y;
+    D13.m.x = p.x; D13.m.y = p.y; D13.m.in = true; D13.m.shift = e.shiftKey;
+  };
+  c.addEventListener('pointermove', upd);
+  c.addEventListener('pointerleave', () => { D13.m.in = false; D13.m.down = false; D13.grab = null; });
+  c.addEventListener('pointerdown', e => {
+    if(e.button === 2) return;
+    upd(e); D13.m.down = true;
+    c.setPointerCapture && c.setPointerCapture(e.pointerId);
+    if(!D13.m.shift){
+      let bi = -1, bd = 90;
+      D13.pts.forEach((p,i) => { const d = Math.hypot(p.x-D13.m.x, p.y-D13.m.y); if(d < bd){ bd = d; bi = i; } });
+      D13.grab = bi >= 0 ? bi : null;
+    }
+  });
+  c.addEventListener('pointerup', () => { D13.m.down = false; D13.grab = null; });
+  c.addEventListener('contextmenu', e => {
+    e.preventDefault();
+    const p = localPt(c,e);
+    let bi = -1, bd = 70;
+    D13.pts.forEach((q,i) => { const d = Math.hypot(q.x-p.x, q.y-p.y); if(d < bd){ bd = d; bi = i; } });
+    if(bi >= 0) D13.pts[bi].pin = !D13.pts[bi].pin;
+  });
+})();
+function d13Draw(){
+  if(!D13.run) return;
+  const c = D13.c, cx = sizeCanvas(c); if(cx) D13.ctx = cx;
+  const ctx = D13.ctx, w = c.clientWidth, h = c.clientHeight;
+  if(!ctx || !w || !h){ D13.raf = requestAnimationFrame(d13Draw); return; }
+  if(!D13.pts.length) d13Build();
+  const P = D13.pts, S = D13.sticks;
+  const g = d13cfg.g/100, wind = d13cfg.wind/100, damp = d13cfg.damp/100;
+
+  /* ---- verlet ---- */
+  for(const p of P){
+    if(p.pin) continue;
+    const vx = (p.x - p.px)*damp, vy = (p.y - p.py)*damp;
+    p.px = p.x; p.py = p.y;
+    p.x += vx + wind + Math.sin((p.y + performance.now()*0.001)*0.01)*wind*0.6;
+    p.y += vy + g;
+  }
+  if(D13.grab != null && D13.m.down && P[D13.grab]){
+    const p = P[D13.grab];
+    p.x = D13.m.x; p.y = D13.m.y; p.px = D13.m.x; p.py = D13.m.y;
+  }
+  for(let it = 0; it < d13cfg.iter; it++){
+    for(const s of S){
+      const a = P[s.a], b = P[s.b];
+      const dx = b.x-a.x, dy = b.y-a.y;
+      const d = Math.hypot(dx,dy) || .001;
+      const diff = (s.len - d)/d*0.5;
+      const ox = dx*diff, oy = dy*diff;
+      if(!a.pin){ a.x -= ox; a.y -= oy; }
+      if(!b.pin){ b.x += ox; b.y += oy; }
+    }
+    for(const p of P){
+      if(p.y > h-4){ p.y = h-4; }
+      if(p.x < 4) p.x = 4;
+      if(p.x > w-4) p.x = w-4;
+    }
+  }
+  /* ---- กรรไกร ---- */
+  if(d13cfg.cut && D13.m.down && D13.m.shift){
+    const R = 26;
+    for(let i = S.length-1; i >= 0; i--){
+      const a = P[S[i].a], b = P[S[i].b];
+      const mx = (a.x+b.x)/2, my = (a.y+b.y)/2;
+      if(Math.hypot(mx-D13.m.x, my-D13.m.y) < R) S.splice(i,1);
+    }
+  }
+
+  /* ---- วาด ---- */
+  const bg = ctx.createLinearGradient(0,0,0,h);
+  bg.addColorStop(0,'#0a0d22'); bg.addColorStop(1,'#05060f');
+  ctx.fillStyle = bg; ctx.fillRect(0,0,w,h);
+  const [cr,cg,cb] = hex2rgb(d13cfg.col);
+  const cols = D13.cols, rows = D13.rows;
+  const style = d13cfg.draw;
+
+  if(style === 'fill' && d13cfg.mode === 'cloth'){
+    const live = new Set(S.map(s => s.a + ':' + s.b));
+    for(let j = 0; j < rows-1; j++) for(let i = 0; i < cols-1; i++){
+      const k = j*cols+i;
+      if(!live.has(k + ':' + (k+1)) || !live.has(k + ':' + (k+cols))) continue;
+      const a = P[k], b = P[k+1], d = P[k+cols+1], e = P[k+cols];
+      /* ยิ่งช่วงแนวนอนถูกบีบ = รอยพับ -> เข้มขึ้น ทำให้เห็นคลื่นผ้าจริง ๆ */
+      const k2 = Math.max(0, Math.min(1.25, Math.hypot(b.x-a.x, b.y-a.y) / D13.restX));
+      const l = 0.20 + k2*0.62 + (1 - j/rows)*0.16;
+      ctx.fillStyle = `rgba(${Math.min(255,cr*l*1.6)},${Math.min(255,cg*l*1.6)},${Math.min(255,cb*l*1.6)},.92)`;
+      ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.lineTo(d.x,d.y); ctx.lineTo(e.x,e.y);
+      ctx.closePath(); ctx.fill();
+    }
+  }
+  if(style === 'mesh' || style === 'fill'){
+    ctx.strokeStyle = style === 'fill' ? 'rgba(255,255,255,.10)' : `rgba(${cr},${cg},${cb},.72)`;
+    ctx.lineWidth = style === 'fill' ? 1 : 1.6;
+    ctx.beginPath();
+    for(const s of S){ const a = P[s.a], b = P[s.b]; ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); }
+    ctx.stroke();
+  }
+  if(style === 'dots'){
+    ctx.fillStyle = `rgba(${cr},${cg},${cb},.85)`;
+    for(const p of P){ ctx.beginPath(); ctx.arc(p.x, p.y, 2.4, 0, Math.PI*2); ctx.fill(); }
+  }
+  ctx.fillStyle = '#ffd56e';
+  for(const p of P) if(p.pin){ ctx.beginPath(); ctx.arc(p.x, p.y, 4.5, 0, Math.PI*2); ctx.fill(); }
+  if(D13.m.in){
+    const cut = d13cfg.cut && D13.m.shift;
+    ctx.strokeStyle = cut ? 'rgba(255,79,163,.85)' : 'rgba(255,255,255,.28)';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(D13.m.x, D13.m.y, cut ? 26 : 14, 0, Math.PI*2); ctx.stroke();
+  }
+  ctx.fillStyle = 'rgba(255,255,255,.24)';
+  ctx.font = '700 13px "Space Grotesk", sans-serif';
+  ctx.fillText(`${P.length} POINTS · ${S.length} CONSTRAINTS · ${d13cfg.iter} ITERATIONS`, 18, h-18);
+  D13.raf = requestAnimationFrame(d13Draw);
+}
+onSlide('#c13', {
+  enter(){ D13.c = document.getElementById('c13'); d13Build();
+           if(D13.run) return; D13.run = true; d13Draw(); },
+  leave(){ D13.run = false; cancelAnimationFrame(D13.raf); D13.m.down = false; D13.grab = null; }
+});
+/* ============================================================
+   DEMO 14 — AUDIO REACTIVE FOREST
+   ไมค์ -> FFT -> พลังงานแต่ละย่านความถี่ -> ต้นไม้/แท่งแสงที่โตตามเสียง
+   ============================================================ */
+const D14 = { c:null, ctx:null, run:false, raf:0, e:null, peak:null, t:0, last:0 };
+const d14cfg = cfg('h14', [
+  { t:'● เปิดไมโครโฟน', type:'btn', k:'mic', fn:(st,b) => d14Toggle(b) },
+  { k:'lvl',   t:'',        type:'meter' },
+  { k:'bands', t:'จำนวนแท่ง', type:'range', v:36, min:8, max:128 },
+  { k:'gain',  t:'ความไว',  type:'range', v:130, min:20, max:400, unit:'%' },
+  { k:'smooth',t:'หน่วงเวลา', type:'range', v:22, min:2, max:80, unit:'%' },
+  { k:'style', t:'สไตล์',   type:'pick', v:'tree', opts:[['tree','ต้นไม้'],['bar','แท่งแสง'],['ring','วงกลม']] },
+  { k:'col',   t:'สี',      type:'color', v:'#c7ff4b' },
+  { k:'hue',   t:'ไล่สี',    type:'toggle', v:true },
+  { k:'mirror',t:'สะท้อนพื้น', type:'toggle', v:true }
+], k => { if(k === 'bands'){ D14.e = null; } });
+
+async function d14Start(btn){
+  if(!isHttp()){ say('s14', FILE_MSG); return; }
+  try{ await micStart(2048); say('s14','กำลังฟัง — <b>พูด ตบมือ หรือเปิดเพลงดู</b>'); }
+  catch(_){ say('s14','ยังไม่ได้รับอนุญาตให้ใช้ไมค์ — กดไอคอนแม่กุญแจข้าง URL แล้วเปิด Microphone'); return; }
+  d14Btn(btn);
+}
+function d14Stop(btn){ micStop(); say('s14','ปิดไมค์แล้ว'); d14Btn(btn);
+  const l = d14cfg.$.lvl; if(l) l.style.width = '0%'; }
+function d14Toggle(btn){ MIC.on ? d14Stop(btn) : d14Start(btn); }
+function d14Btn(btn){
+  const b = btn || d14cfg.$.mic; if(!b) return;
+  b.classList.toggle('live', MIC.on);
+  b.textContent = MIC.on ? '■ ปิดไมโครโฟน' : '● เปิดไมโครโฟน';
+}
+function d14Bands(){
+  const n = d14cfg.bands;
+  if(!D14.e || D14.e.length !== n){ D14.e = new Float32Array(n); D14.peak = new Float32Array(n); }
+  const sm = d14cfg.smooth/100, gain = d14cfg.gain/100;
+  const F = MIC.freq;
+  for(let i = 0; i < n; i++){
+    let v = 0;
+    if(F){
+      /* แบ่งย่านแบบ log — เสียงต่ำกินช่องน้อย เสียงสูงกินช่องมาก */
+      const a = Math.floor(Math.pow(i/n, 2.0) * (F.length*0.72));
+      const b = Math.max(a+1, Math.floor(Math.pow((i+1)/n, 2.0) * (F.length*0.72)));
+      let s = 0; for(let k = a; k < b; k++) s += F[k];
+      v = Math.min(1, (s/(b-a))/255 * gain * (1 + i/n*0.9));
+    } else {
+      v = 0.10 + 0.09*Math.sin(D14.t*1.7 + i*0.5) + 0.05*Math.sin(D14.t*3.1 + i);
+    }
+    D14.e[i] += (v - D14.e[i]) * sm;
+    D14.peak[i] = Math.max(D14.peak[i]*0.985, D14.e[i]);
+  }
+  return D14.e;
+}
+function d14Branch(ctx, x, y, len, ang, depth, e, col){
+  if(depth <= 0 || len < 2) return;
+  const x2 = x + Math.cos(ang)*len, y2 = y + Math.sin(ang)*len;
+  ctx.lineWidth = Math.max(1, depth*1.5);
+  ctx.strokeStyle = col;
+  ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x2,y2); ctx.stroke();
+  const spread = 0.42 + e*0.5;
+  d14Branch(ctx, x2, y2, len*0.70, ang - spread, depth-1, e, col);
+  d14Branch(ctx, x2, y2, len*0.70, ang + spread, depth-1, e, col);
+  if(depth === 1){
+    ctx.fillStyle = col;
+    ctx.beginPath(); ctx.arc(x2, y2, 2 + e*4, 0, Math.PI*2); ctx.fill();
+  }
+}
+function d14Draw(){
+  if(!D14.run) return;
+  const c = D14.c, cx = sizeCanvas(c); if(cx) D14.ctx = cx;
+  const ctx = D14.ctx, w = c.clientWidth, h = c.clientHeight;
+  if(!ctx || !w || !h){ D14.raf = requestAnimationFrame(d14Draw); return; }
+  const now = performance.now();
+  const dt = D14.last ? Math.min(.05, (now-D14.last)/1000) : .016; D14.last = now;
+  D14.t += dt;
+  if(MIC.an){
+    micRead(dt);
+    const l = d14cfg.$.lvl; if(l) l.style.width = (MIC.level*100).toFixed(0) + '%';
+  }
+  const E = d14Bands(), n = E.length;
+  const [cr,cg,cb] = hex2rgb(d14cfg.col);
+  const useHue = d14cfg.hue;
+  const colOf = (i, a) => useHue
+    ? `hsla(${(90 + i/n*220 + D14.t*12) % 360},92%,${58 + E[i]*22}%,${a})`
+    : `rgba(${cr},${cg},${cb},${a})`;
+
+  const bg = ctx.createLinearGradient(0,0,0,h);
+  bg.addColorStop(0,'#05081a'); bg.addColorStop(1,'#0a0620');
+  ctx.fillStyle = bg; ctx.fillRect(0,0,w,h);
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  const glow = ctx.createRadialGradient(w/2, h, 10, w/2, h, h*1.1);
+  glow.addColorStop(0, `rgba(${cr},${cg},${cb},${0.05 + MIC.level*0.22})`);
+  glow.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = glow; ctx.fillRect(0,0,w,h);
+  ctx.restore();
+
+  const style = d14cfg.style;
+  const ground = h*0.86;
+  if(style === 'bar'){
+    const bw = w/n;
+    for(let i = 0; i < n; i++){
+      const v = E[i], bh = v*h*0.72;
+      const x = i*bw;
+      const g = ctx.createLinearGradient(0, ground, 0, ground-bh);
+      g.addColorStop(0, colOf(i, .25)); g.addColorStop(1, colOf(i, .95));
+      ctx.fillStyle = g;
+      ctx.fillRect(x + bw*0.16, ground-bh, bw*0.68, bh);
+      ctx.fillStyle = colOf(i, .9);
+      ctx.fillRect(x + bw*0.16, ground - D14.peak[i]*h*0.72 - 3, bw*0.68, 3);
+      if(d14cfg.mirror){
+        ctx.globalAlpha = .22;
+        ctx.fillStyle = colOf(i, .8);
+        ctx.fillRect(x + bw*0.16, ground, bw*0.68, bh*0.42);
+        ctx.globalAlpha = 1;
+      }
+    }
+  } else if(style === 'ring'){
+    const R = Math.min(w,h)*0.24, cx2 = w/2, cy2 = h/2;
+    ctx.lineCap = 'round';
+    for(let i = 0; i < n; i++){
+      const a = i/n*Math.PI*2 - Math.PI/2;
+      const len = R*0.25 + E[i]*Math.min(w,h)*0.30;
+      ctx.strokeStyle = colOf(i, .92); ctx.lineWidth = Math.max(2, Math.min(w,h)*0.9/n);
+      ctx.beginPath();
+      ctx.moveTo(cx2 + Math.cos(a)*R, cy2 + Math.sin(a)*R);
+      ctx.lineTo(cx2 + Math.cos(a)*(R+len), cy2 + Math.sin(a)*(R+len));
+      ctx.stroke();
+      if(d14cfg.mirror){
+        ctx.globalAlpha = .35;
+        ctx.beginPath();
+        ctx.moveTo(cx2 + Math.cos(a)*R, cy2 + Math.sin(a)*R);
+        ctx.lineTo(cx2 + Math.cos(a)*(R-len*0.42), cy2 + Math.sin(a)*(R-len*0.42));
+        ctx.stroke(); ctx.globalAlpha = 1;
+      }
+    }
+    ctx.strokeStyle = `rgba(255,255,255,${.12 + MIC.level*.3})`; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(cx2, cy2, R*(1 + MIC.level*.06), 0, Math.PI*2); ctx.stroke();
+  } else {
+    const step = w/n;
+    ctx.lineCap = 'round';
+    for(let i = 0; i < n; i++){
+      const x = (i+0.5)*step;
+      const v = E[i];
+      const len = h*0.15 + v*h*0.46;
+      const sway = Math.sin(D14.t*1.2 + i*0.7)*0.06*(1+v);
+      d14Branch(ctx, x, ground, len, -Math.PI/2 + sway, 5, v, colOf(i, .55 + v*0.45));
+    }
+    ctx.strokeStyle = 'rgba(255,255,255,.10)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(0, ground); ctx.lineTo(w, ground); ctx.stroke();
+    if(d14cfg.mirror){
+      ctx.save(); ctx.globalAlpha = .18; ctx.translate(0, ground*2); ctx.scale(1,-1);
+      for(let i = 0; i < n; i++){
+        const x = (i+0.5)*step, v = E[i];
+        d14Branch(ctx, x, ground, h*0.15 + v*h*0.46, -Math.PI/2, 4, v, colOf(i, .6));
+      }
+      ctx.restore();
+    }
+  }
+  ctx.fillStyle = 'rgba(255,255,255,.24)'; ctx.textAlign = 'left';
+  ctx.font = '700 13px "Space Grotesk", sans-serif';
+  ctx.fillText(MIC.on ? `${n} BANDS · LEVEL ${(MIC.level*100).toFixed(0)}%`
+                      : `${n} BANDS · ยังไม่เปิดไมค์ (โชว์คลื่นจำลอง)`, 18, h-18);
+  D14.raf = requestAnimationFrame(d14Draw);
+}
+onSlide('#c14', {
+  enter(){ D14.c = document.getElementById('c14'); D14.last = 0;
+           if(D14.run) return; D14.run = true; d14Draw(); },
+  leave(){ D14.run = false; cancelAnimationFrame(D14.raf); if(MIC.on) d14Stop(); }
+});
+
+/* ============================================================
+   BOOT
+   ============================================================ */
+progressEl.style.width = `${1/slides.length*100}%`;
+runHooks();
+addEventListener('resize', () => {
+  if(D1.run)  d1Seed();
+  if(D9.run)  D9.W = 0;
+  if(D5.run)  d5Seed();
+  if(D6.run)  d6Seed();
+  if(D7.run)  D7.fw = 0;
+  if(D8.run)  D8.hgt = null;
+  if(D10.run){ D10.fresh = true; d10Seed(); }
+  if(D11.run) d11Dust();
+  if(D12.run) D12.pw = 0;
+  if(D13.run) d13Build();
+});
+</script>
+</body>
+</html>
